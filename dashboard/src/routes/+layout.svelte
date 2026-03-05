@@ -19,6 +19,7 @@
 	// Admin navigation items
 	const adminNavItems = [
 		{ path: "/tenants", label: "Tenants", icon: "🏢" },
+		{ path: "/partners", label: "Partners", icon: "🤝" },
 		{ path: "/billing", label: "Billing", icon: "💳" },
 		{ path: "/settings", label: "Settings", icon: "⚙️" },
 	];
