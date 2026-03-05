@@ -11,7 +11,7 @@
  */
 
 import { Hono } from "hono";
-import { verifyJWT } from "../lib/auth/jwt";
+import { type JWTPayload, verifyJWT } from "../lib/auth/jwt";
 import type { Env } from "../types/env";
 
 const ws = new Hono<{ Bindings: Env }>();
@@ -58,7 +58,7 @@ ws.get("/ws", async (c) => {
 	}
 
 	// Verify JWT
-	let payload: { sub: string; tenant_id: string };
+	let payload: JWTPayload;
 	try {
 		payload = await verifyJWT(token, c.env.JWT_SECRET);
 	} catch {
@@ -85,7 +85,7 @@ ws.get("/ws", async (c) => {
 		data: {
 			status: "connected",
 			user_id: payload.sub,
-			tenant_id: payload.tenant_id,
+			tenant_id: payload.tid,
 		},
 	};
 	server.send(JSON.stringify(connectionMessage));

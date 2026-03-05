@@ -140,9 +140,7 @@ stripe.post("/webhook", async (c) => {
 	}
 
 	// Check idempotency - have we already processed this event?
-	const existingEvent = await c.env.DB.prepare("SELECT id FROM stripe_events WHERE event_id = ?")
-		.bind(event.id)
-		.first();
+	const existingEvent = await c.env.DB.prepare("SELECT 1 FROM stripe_events WHERE event_id = ?").bind(event.id).first();
 
 	if (existingEvent) {
 		// Already processed, return success to prevent retries
@@ -178,11 +176,11 @@ stripe.post("/webhook", async (c) => {
 				console.info(`Unhandled Stripe event type: ${event.type}`);
 		}
 
-		// Record the event for idempotency
+		// Record the event for idempotency (event_id is the PK)
 		await c.env.DB.prepare(
-			"INSERT INTO stripe_events (id, event_id, event_type, processed_at) VALUES (?, ?, ?, datetime('now'))",
+			"INSERT INTO stripe_events (event_id, event_type, processed_at) VALUES (?, ?, datetime('now'))",
 		)
-			.bind(crypto.randomUUID(), event.id, event.type)
+			.bind(event.id, event.type)
 			.run();
 
 		return c.json({ success: true, data: { received: true } });
@@ -315,14 +313,15 @@ async function handleSubscriptionUpdated(env: Env, event: StripeEvent): Promise<
 	const newPlan = PRICE_TO_PLAN[priceId] ?? "starter";
 
 	// Plan limits
+	const defaultLimits = { token_budget_daily: 5_000_000, msg_budget_daily: 2_500, max_agents: 1 };
 	const planLimits: Record<string, { token_budget_daily: number; msg_budget_daily: number; max_agents: number }> = {
-		starter: { token_budget_daily: 5_000_000, msg_budget_daily: 2_500, max_agents: 1 },
+		starter: defaultLimits,
 		pro: { token_budget_daily: 50_000_000, msg_budget_daily: 10_000, max_agents: 5 },
 		business: { token_budget_daily: 500_000_000, msg_budget_daily: 100_000, max_agents: 25 },
 		enterprise: { token_budget_daily: -1, msg_budget_daily: -1, max_agents: -1 },
 	};
 
-	const limits = planLimits[newPlan] ?? planLimits.starter;
+	const limits = planLimits[newPlan] ?? defaultLimits;
 
 	// Update tenant plan and limits
 	await env.DB.prepare(

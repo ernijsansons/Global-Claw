@@ -44,6 +44,7 @@ export interface ProvisioningOutput {
 /**
  * Plan limits configuration
  */
+const DEFAULT_LIMITS = { token_budget_daily: 5_000_000, msg_budget_daily: 2_500, max_agents: 1 };
 const PLAN_LIMITS: Record<
 	string,
 	{
@@ -52,7 +53,7 @@ const PLAN_LIMITS: Record<
 		max_agents: number;
 	}
 > = {
-	starter: { token_budget_daily: 5_000_000, msg_budget_daily: 2_500, max_agents: 1 },
+	starter: DEFAULT_LIMITS,
 	pro: { token_budget_daily: 50_000_000, msg_budget_daily: 10_000, max_agents: 5 },
 	business: { token_budget_daily: 500_000_000, msg_budget_daily: 100_000, max_agents: 25 },
 	enterprise: { token_budget_daily: -1, msg_budget_daily: -1, max_agents: -1 }, // unlimited
@@ -70,7 +71,7 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 		const validated = await step.do("validate-event", async () => {
 			if (input.stripe_event_id) {
 				// Check if we've already processed this Stripe event
-				const existing = await this.env.DB.prepare("SELECT id FROM stripe_events WHERE event_id = ?")
+				const existing = await this.env.DB.prepare("SELECT 1 FROM stripe_events WHERE event_id = ?")
 					.bind(input.stripe_event_id)
 					.first();
 
@@ -78,11 +79,11 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 					return { valid: false, reason: "duplicate_event" };
 				}
 
-				// Record the event for idempotency
+				// Record the event for idempotency (event_id is the PK)
 				await this.env.DB.prepare(
-					"INSERT INTO stripe_events (id, event_id, event_type, processed_at) VALUES (?, ?, ?, datetime('now'))",
+					"INSERT INTO stripe_events (event_id, event_type, processed_at) VALUES (?, ?, datetime('now'))",
 				)
-					.bind(crypto.randomUUID(), input.stripe_event_id, "customer.subscription.created")
+					.bind(input.stripe_event_id, "customer.subscription.created")
 					.run();
 			}
 
@@ -119,22 +120,22 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 		// Step 3: Create tenant
 		const tenant = await step.do("create-tenant", async () => {
 			const tenantId = crypto.randomUUID();
-			const limits = PLAN_LIMITS[input.plan] ?? PLAN_LIMITS.starter;
+			const limits = PLAN_LIMITS[input.plan] ?? DEFAULT_LIMITS;
 
-			// Generate slug from name or email
+			// Generate subdomain from name or email
 			const baseName = input.name ?? input.email.split("@")[0] ?? "tenant";
-			const slug = baseName
+			const subdomainBase = baseName
 				.toLowerCase()
 				.replace(/[^a-z0-9]+/g, "-")
 				.replace(/^-|-$/g, "")
 				.slice(0, 32);
 
-			// Make slug unique by appending random suffix if needed
-			const uniqueSlug = `${slug}-${crypto.randomUUID().slice(0, 8)}`;
+			// Make subdomain unique by appending random suffix if needed
+			const uniqueSubdomain = `${subdomainBase}-${crypto.randomUUID().slice(0, 8)}`;
 
 			await this.env.DB.prepare(
 				`INSERT INTO tenants (
-					id, name, slug, status, plan,
+					id, name, subdomain, status, plan,
 					token_budget_daily, msg_budget_daily, max_agents,
 					created_at, updated_at
 				) VALUES (?, ?, ?, 'active', ?, ?, ?, ?, datetime('now'), datetime('now'))`,
@@ -142,7 +143,7 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 				.bind(
 					tenantId,
 					input.name ?? input.email.split("@")[0] ?? "New Tenant",
-					uniqueSlug,
+					uniqueSubdomain,
 					input.plan,
 					limits.token_budget_daily,
 					limits.msg_budget_daily,
@@ -158,7 +159,7 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 				.bind(tenantId, user.id)
 				.run();
 
-			return { id: tenantId, slug: uniqueSlug, plan: input.plan };
+			return { id: tenantId, subdomain: uniqueSubdomain, plan: input.plan };
 		});
 
 		// Step 4: Create subscription record
@@ -176,14 +177,11 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 			return { created: !!input.stripe_subscription_id };
 		});
 
-		// Step 5: Allocate subdomain
+		// Step 5: Allocate subdomain (already set in create-tenant, just format it)
 		const subdomain = await step.do("allocate-subdomain", async () => {
-			// For now, just construct the subdomain
+			// For now, just construct the full subdomain URL
 			// In production, this would create a DNS record via Cloudflare API
-			const subdomainValue = `${tenant.slug}.global-claw.com`;
-
-			// Update tenant with subdomain
-			await this.env.DB.prepare("UPDATE tenants SET subdomain = ? WHERE id = ?").bind(subdomainValue, tenant.id).run();
+			const subdomainValue = `${tenant.subdomain}.global-claw.com`;
 
 			return subdomainValue;
 		});
@@ -252,8 +250,8 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 
 			const packs = [...basePacks, ...(planPacks[input.plan] ?? [])];
 
-			// Store activated packs in tenant config (could also be done in DO)
-			await this.env.DB.prepare("UPDATE tenants SET feature_flags_json = ? WHERE id = ?")
+			// Store activated packs in tenant metadata_json
+			await this.env.DB.prepare("UPDATE tenants SET metadata_json = ? WHERE id = ?")
 				.bind(JSON.stringify({ activated_packs: packs }), tenant.id)
 				.run();
 
@@ -293,7 +291,7 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 				template: "welcome",
 				recipient: input.email,
 				data: {
-					tenant_name: tenant.slug,
+					tenant_name: tenant.subdomain,
 					subdomain: subdomain,
 					plan: input.plan,
 					api_key_prefix: apiKey.slice(0, 12),
