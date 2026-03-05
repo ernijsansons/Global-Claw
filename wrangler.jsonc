@@ -90,7 +90,11 @@
 				"bindings": [{ "name": "TENANT_AGENT", "class_name": "TenantAgent" }]
 			},
 			"workflows": [
-				{ "name": "tenant-provisioning", "binding": "PROVISIONING_WORKFLOW", "class_name": "TenantProvisioningWorkflow" }
+				{
+					"name": "tenant-provisioning",
+					"binding": "PROVISIONING_WORKFLOW",
+					"class_name": "TenantProvisioningWorkflow"
+				}
 			],
 			"ai": { "binding": "AI" },
 			"d1_databases": [
@@ -137,7 +141,11 @@
 				"bindings": [{ "name": "TENANT_AGENT", "class_name": "TenantAgent" }]
 			},
 			"workflows": [
-				{ "name": "tenant-provisioning", "binding": "PROVISIONING_WORKFLOW", "class_name": "TenantProvisioningWorkflow" }
+				{
+					"name": "tenant-provisioning",
+					"binding": "PROVISIONING_WORKFLOW",
+					"class_name": "TenantProvisioningWorkflow"
+				}
 			],
 			"ai": { "binding": "AI" },
 			"routes": [{ "pattern": "api.global-claw.com/*", "zone_name": "global-claw.com" }],
