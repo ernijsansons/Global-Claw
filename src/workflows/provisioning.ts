@@ -87,8 +87,29 @@ export class TenantProvisioningWorkflow extends WorkflowEntrypoint<Env, Provisio
 
 		// Step 6: Initialize Durable Object
 		await step.do("initialize-do", async () => {
-			// TODO: Get DO stub and call /init endpoint
-			return { initialized: true };
+			// Get DO stub using tenant ID as the name
+			const doId = this.env.TENANT_AGENT.idFromName(tenant.id);
+			const stub = this.env.TENANT_AGENT.get(doId);
+
+			// Call the bind endpoint to initialize the DO with tenant data
+			// Pass tenant_id via header so the DO knows which tenant to bind
+			const response = await stub.fetch(
+				new Request("https://do/bind", {
+					method: "POST",
+					headers: {
+						"X-Tenant-ID": tenant.id,
+						"Content-Type": "application/json",
+					},
+				}),
+			);
+			const result = (await response.json()) as { success: boolean; error?: { message?: string }; data?: unknown };
+
+			if (!result.success) {
+				const errorMsg = typeof result.error === "object" ? result.error?.message : String(result.error);
+				throw new Error(`Failed to initialize DO: ${errorMsg}`);
+			}
+
+			return { initialized: true, tenant_id: tenant.id };
 		});
 
 		// Step 7: Activate default packs

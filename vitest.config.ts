@@ -11,9 +11,7 @@ export default defineWorkersConfig({
 					d1Databases: ["DB"],
 					kvNamespaces: ["RATE_LIMIT_KV"],
 					r2Buckets: ["ASSETS"],
-					durableObjects: {
-						TENANT_AGENT: "TenantAgent",
-					},
+					// DO config comes from wrangler.jsonc with new_sqlite_classes migration
 					// Workers AI and Vectorize are NOT available in Miniflare.
 					// Tests that touch AI/Vectorize must use mocks from tests/helpers/mocks.ts.
 					// The Env type still expects these bindings, so test setup injects stubs.
