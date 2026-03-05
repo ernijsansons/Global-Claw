@@ -671,17 +671,45 @@ export interface ProviderAdapter {
 // ============================================================================
 
 /**
+ * TenantRole
+ * Role of a user within a tenant, or 'api_key' for API key auth.
+ */
+export type TenantRole = "owner" | "admin" | "member" | "viewer" | "api_key";
+
+/**
  * TenantContext
  * Attached to Hono context after auth middleware.
+ * Lightweight structure for middleware use.
  */
 export interface TenantContext {
+	/** User ID (from JWT sub claim) */
+	user_id: string;
+	/** Current tenant ID */
+	tenant_id: string;
+	/** User's role in the current tenant */
+	role: TenantRole;
+	/** Tenant's subscription plan */
+	plan?: string;
+	/** User email (when available) */
+	email?: string;
+	/** API key ID (when authenticated via API key) */
+	api_key_id?: string;
+	/** API key scopes (when authenticated via API key) */
+	scopes?: string[];
+}
+
+/**
+ * FullTenantContext
+ * Extended context with full user and tenant objects.
+ * Used when full details are needed beyond basic auth.
+ */
+export interface FullTenantContext extends TenantContext {
 	user: Omit<User, "password_hash">;
 	tenants: Array<{
 		tenant: Tenant;
-		role: "owner" | "admin" | "member" | "viewer";
+		role: TenantRole;
 	}>;
 	current_tenant: Tenant;
-	current_role: "owner" | "admin" | "member" | "viewer";
 	api_key?: Omit<ApiKey, "key_hash" | "scopes_json"> & { scopes: string[] };
 	trace_id: string;
 	request_at: string;
