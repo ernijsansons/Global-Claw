@@ -483,8 +483,8 @@ routingRules.post("/test", async (c) => {
 	let selectedProvider: { provider_slug: string; model: string } | null = null;
 	let selectedRule: LLMRoutingRule | null = null;
 
-	if (matchedRules.length > 0) {
-		selectedRule = matchedRules[0]!.rule;
+	if (matchedRules.length > 0 && matchedRules[0]) {
+		selectedRule = matchedRules[0].rule;
 		const routes = JSON.parse(selectedRule.routes_json) as Array<{
 			provider_slug: string;
 			model: string;

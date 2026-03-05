@@ -19,6 +19,8 @@ import {
 // Import API routes
 import { providers } from "./api/providers";
 import { routingRules } from "./api/routing-rules";
+import { telegramApi } from "./api/telegram";
+import { telegramWebhook } from "./telegram";
 
 // Create Hono app with typed environment
 const app = new Hono<{ Bindings: Env }>();
@@ -48,6 +50,8 @@ app.onError(errorHandler);
 
 app.route("/api/providers", providers);
 app.route("/api/routing-rules", routingRules);
+app.route("/api", telegramApi);
+app.route("/tg/webhook", telegramWebhook);
 
 // ============================================================================
 // Tenant Durable Object Control-Plane Routes
@@ -142,52 +146,6 @@ app.post("/api/do/bind/:tenantId", async (c) => {
 	);
 	const result = await response.json();
 	return c.json(result, response.status as 200 | 400 | 401 | 403 | 404 | 500);
-});
-
-// ============================================================================
-// Telegram Webhook Route
-// POST /tg/webhook/:agentId - Receives Telegram updates for specific agent
-// ============================================================================
-
-app.post("/tg/webhook/:agentId", async (c) => {
-	const agentId = c.req.param("agentId");
-	if (!agentId) {
-		return c.json({ success: false, error: { code: "VALIDATION_ERROR", message: "Missing agentId" } }, 400);
-	}
-
-	// Verify Telegram webhook secret
-	const telegramSecret = c.req.header("X-Telegram-Bot-Api-Secret-Token");
-	if (telegramSecret !== c.env.TELEGRAM_WEBHOOK_SECRET) {
-		return c.json({ success: false, error: { code: "UNAUTHORIZED", message: "Invalid webhook secret" } }, 401);
-	}
-
-	// Look up which tenant owns this agent
-	const agent = await c.env.DB.prepare("SELECT tenant_id FROM agents WHERE id = ?")
-		.bind(agentId)
-		.first<{ tenant_id: string }>();
-	if (!agent) {
-		return c.json({ success: false, error: { code: "NOT_FOUND", message: "Agent not found" } }, 404);
-	}
-
-	// Forward to the tenant's DO
-	const stub = getTenantAgentStub(c.env, agent.tenant_id);
-	const body = await c.req.json();
-
-	const doResponse = await stub.fetch(
-		new Request("https://do/telegram/webhook", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"X-Agent-ID": agentId,
-			},
-			body: JSON.stringify(body),
-		}),
-	);
-
-	return new Response(doResponse.body, {
-		status: doResponse.status,
-		headers: doResponse.headers,
-	});
 });
 
 // ============================================================================
