@@ -642,6 +642,28 @@ export interface RoutingDecision {
 }
 
 /**
+ * LLMStreamChunk
+ * Individual chunk from streaming LLM response.
+ */
+export type LLMStreamChunk =
+	| { type: "content"; content: string }
+	| { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+	| { type: "done"; metrics: LLMStreamMetrics }
+	| { type: "error"; error: string };
+
+/**
+ * LLMStreamMetrics
+ * Metrics collected during streaming.
+ */
+export interface LLMStreamMetrics {
+	input_tokens: number;
+	output_tokens: number;
+	total_tokens: number;
+	latency_ms: number;
+	cost_usd: number;
+}
+
+/**
  * CircuitBreakerState
  * Tracks health of a provider for circuit breaker logic.
  */
