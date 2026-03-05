@@ -48,7 +48,7 @@ describe("TenantAgent Integration", () => {
 
 		// Link user to tenant
 		await env.DB.prepare(`
-			INSERT OR REPLACE INTO tenant_users (tenant_id, user_id, role, created_at)
+			INSERT OR REPLACE INTO tenant_users (tenant_id, user_id, role, invited_at)
 			VALUES (?, ?, ?, datetime('now'))
 		`)
 			.bind(testTenantId, "test-user-001", "admin")

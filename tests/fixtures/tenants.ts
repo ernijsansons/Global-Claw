@@ -2,8 +2,8 @@
  * Test fixtures for tenant and user data
  */
 
-import type { Env } from "../../src/types/env";
 import { createJWT } from "../../src/lib/auth/jwt";
+import type { Env } from "../../src/types/env";
 
 // Generate unique IDs for tests
 function generateId(): string {
@@ -19,7 +19,7 @@ export async function createTestTenant(env: Env): Promise<{ id: string; name: st
 
 	await env.DB.prepare(
 		`INSERT INTO tenants (id, name, status, plan, created_at, updated_at)
-		 VALUES (?, ?, 'active', 'pro', datetime('now'), datetime('now'))`
+		 VALUES (?, ?, 'active', 'pro', datetime('now'), datetime('now'))`,
 	)
 		.bind(id, name)
 		.run();
@@ -33,7 +33,7 @@ export async function createTestTenant(env: Env): Promise<{ id: string; name: st
 export async function createTestUser(
 	env: Env,
 	tenantId: string,
-	role: string = "owner"
+	role = "owner",
 ): Promise<{ id: string; email: string }> {
 	const id = generateId();
 	const email = `test-${id.slice(0, 8)}@example.com`;
@@ -41,7 +41,7 @@ export async function createTestUser(
 	// Create user
 	await env.DB.prepare(
 		`INSERT INTO users (id, email, password_hash, created_at, updated_at)
-		 VALUES (?, ?, 'test-hash', datetime('now'), datetime('now'))`
+		 VALUES (?, ?, 'test-hash', datetime('now'), datetime('now'))`,
 	)
 		.bind(id, email)
 		.run();
@@ -49,7 +49,7 @@ export async function createTestUser(
 	// Link user to tenant
 	await env.DB.prepare(
 		`INSERT INTO tenant_users (tenant_id, user_id, role, created_at)
-		 VALUES (?, ?, ?, datetime('now'))`
+		 VALUES (?, ?, ?, datetime('now'))`,
 	)
 		.bind(tenantId, id, role)
 		.run();
@@ -67,7 +67,7 @@ export async function createTestAgent(
 		name?: string;
 		status?: string;
 		llm_provider_slug?: string;
-	} = {}
+	} = {},
 ): Promise<{ id: string; name: string }> {
 	const id = generateId();
 	const name = options.name ?? `Test Agent ${id.slice(0, 8)}`;
@@ -76,7 +76,7 @@ export async function createTestAgent(
 
 	await env.DB.prepare(
 		`INSERT INTO agents (id, tenant_id, name, status, llm_provider_slug, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+		 VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
 	)
 		.bind(id, tenantId, name, status, llmProvider)
 		.run();
@@ -93,7 +93,7 @@ export async function generateTestJwt(
 		sub: string;
 		tenant_id: string;
 		role: string;
-	}
+	},
 ): Promise<string> {
 	const secret = env.JWT_SECRET ?? "test-secret-key-for-testing-only";
 	return createJWT(
@@ -104,7 +104,7 @@ export async function generateTestJwt(
 			type: "access",
 		},
 		secret,
-		3600
+		3600,
 	); // 1 hour expiry
 }
 
