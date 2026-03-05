@@ -49,4 +49,42 @@ export async function setupTestDatabase(): Promise<void> {
 	await env.DB.exec(
 		"CREATE TABLE IF NOT EXISTS api_keys (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, key_hash TEXT NOT NULL UNIQUE, scopes_json TEXT DEFAULT '[]', last_used_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
 	);
+
+	// Create partners table
+	await env.DB.exec(
+		"CREATE TABLE IF NOT EXISTS partners (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, tier TEXT NOT NULL DEFAULT 'affiliate', referral_code TEXT UNIQUE, commission_pct INTEGER DEFAULT 30, settings_json TEXT DEFAULT '{}', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
+	);
+
+	// Create tenant_partners table
+	await env.DB.exec(
+		"CREATE TABLE IF NOT EXISTS tenant_partners (tenant_id TEXT NOT NULL, partner_id TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), PRIMARY KEY (tenant_id, partner_id))",
+	);
+
+	// Create plugin_connections table
+	await env.DB.exec(
+		"CREATE TABLE IF NOT EXISTS plugin_connections (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, agent_id TEXT, provider TEXT NOT NULL, oauth_access_token_encrypted TEXT, oauth_refresh_token_encrypted TEXT, token_expires_at TEXT, status TEXT NOT NULL DEFAULT 'active', scopes_json TEXT DEFAULT '[]', created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')))",
+	);
+
+	// Create usage_daily table
+	await env.DB.exec(
+		"CREATE TABLE IF NOT EXISTS usage_daily (tenant_id TEXT NOT NULL, day TEXT NOT NULL, tokens INTEGER DEFAULT 0, messages INTEGER DEFAULT 0, tool_calls INTEGER DEFAULT 0, PRIMARY KEY (tenant_id, day))",
+	);
+
+	// Create llm_usage_log table
+	await env.DB.exec(
+		"CREATE TABLE IF NOT EXISTS llm_usage_log (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, agent_id TEXT, provider_slug TEXT NOT NULL, model TEXT NOT NULL, input_tokens INTEGER DEFAULT 0, output_tokens INTEGER DEFAULT 0, latency_ms INTEGER DEFAULT 0, cost_cents INTEGER DEFAULT 0, success INTEGER DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')))",
+	);
+
+	// Seed LLM providers
+	await env.DB.prepare(`INSERT OR IGNORE INTO llm_providers (id, name, slug, api_base_url, models_json, is_enabled, cost_per_1m_input_cents, cost_per_1m_output_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+		.bind("prov-anthropic", "Anthropic Claude", "anthropic", "https://api.anthropic.com", '["claude-sonnet-4","claude-haiku-4","claude-opus-4"]', 1, 300, 1500)
+		.run();
+
+	await env.DB.prepare(`INSERT OR IGNORE INTO llm_providers (id, name, slug, api_base_url, models_json, is_enabled, cost_per_1m_input_cents, cost_per_1m_output_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+		.bind("prov-qwen", "Alibaba Qwen", "qwen", "https://dashscope.aliyuncs.com", '["qwen-2.5-72b","qwen-2.5-7b"]', 1, 27, 110)
+		.run();
+
+	await env.DB.prepare(`INSERT OR IGNORE INTO llm_providers (id, name, slug, api_base_url, models_json, is_enabled, cost_per_1m_input_cents, cost_per_1m_output_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+		.bind("prov-openai", "OpenAI", "openai", "https://api.openai.com", '["gpt-4o","gpt-4o-mini"]', 0, 500, 1500)
+		.run();
 }
