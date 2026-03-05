@@ -4,12 +4,27 @@
 	import { auth, isAuthenticated, currentUser } from "$lib/stores";
 	import { onMount } from "svelte";
 
-	const navItems = [
+	// Main navigation items
+	const mainNavItems = [
 		{ path: "/", label: "Overview", icon: "📊" },
 		{ path: "/agents", label: "Agents", icon: "🤖" },
 		{ path: "/workflows", label: "Workflows", icon: "⚡" },
-		{ path: "/llm-providers", label: "LLM Providers", icon: "🧠" },
+		{ path: "/memory", label: "Memory", icon: "🧠" },
+		{ path: "/integrations", label: "Integrations", icon: "🔌" },
+		{ path: "/llm-providers", label: "LLM Providers", icon: "🎛️" },
+		{ path: "/conversations", label: "Conversations", icon: "💬" },
+		{ path: "/analytics", label: "Analytics", icon: "📈" },
 	];
+
+	// Admin navigation items
+	const adminNavItems = [
+		{ path: "/tenants", label: "Tenants", icon: "🏢" },
+		{ path: "/billing", label: "Billing", icon: "💳" },
+		{ path: "/settings", label: "Settings", icon: "⚙️" },
+	];
+
+	// Combined for header title lookup
+	const allNavItems = [...mainNavItems, ...adminNavItems];
 
 	let sidebarExpanded = true;
 
@@ -39,8 +54,24 @@
 			</div>
 
 			<!-- Navigation -->
-			<nav class="flex-1 p-4 space-y-2">
-				{#each navItems as item}
+			<nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+				{#each mainNavItems as item}
+					<a
+						href={item.path}
+						class="gc-nav-item"
+						class:active={$page.url.pathname === item.path}
+					>
+						<span class="text-xl">{item.icon}</span>
+						{#if sidebarExpanded}
+							<span>{item.label}</span>
+						{/if}
+					</a>
+				{/each}
+
+				<!-- Divider -->
+				<div class="my-3 border-t border-gc-border-subtle"></div>
+
+				{#each adminNavItems as item}
 					<a
 						href={item.path}
 						class="gc-nav-item"
@@ -96,7 +127,7 @@
 		<header class="h-16 bg-gc-bg-surface border-b border-gc-border-subtle px-6 flex items-center">
 			<div class="flex-1">
 				<h1 class="text-xl font-bold text-gc-text-primary">
-					{navItems.find((item) => item.path === $page.url.pathname)?.label ?? "Dashboard"}
+					{allNavItems.find((item) => item.path === $page.url.pathname)?.label ?? "Dashboard"}
 				</h1>
 			</div>
 
