@@ -4,7 +4,6 @@
  */
 
 import { Hono } from "hono";
-import type { ApiResponse, HealthCheckResult } from "./types";
 import type { Env } from "./types/env";
 
 // Import middleware
