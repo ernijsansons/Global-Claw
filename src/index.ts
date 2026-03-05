@@ -52,6 +52,32 @@ app.use("*", tenantContextMiddleware());
 app.onError(errorHandler);
 
 // ============================================================================
+// Health Check (Public - must be before auth-protected route mounts)
+// ============================================================================
+
+app.get("/api/health", async (c) => {
+	let dbOk = false;
+	let dbLatencyMs = 0;
+	try {
+		const start = Date.now();
+		await c.env.DB.prepare("SELECT 1").first();
+		dbLatencyMs = Date.now() - start;
+		dbOk = true;
+	} catch {
+		dbOk = false;
+	}
+
+	return c.json({
+		success: true,
+		data: {
+			status: dbOk ? "ok" : "degraded",
+			database: { ok: dbOk, latency_ms: dbLatencyMs },
+			checked_at: new Date().toISOString(),
+		},
+	});
+});
+
+// ============================================================================
 // Mount API Routes
 // ============================================================================
 
@@ -163,44 +189,6 @@ app.post("/api/do/bind/:tenantId", async (c) => {
 	);
 	const result = await response.json();
 	return c.json(result, response.status as 200 | 400 | 401 | 403 | 404 | 500);
-});
-
-// ============================================================================
-// Health Check Endpoint (Public)
-// ============================================================================
-
-app.get("/api/health", async (c) => {
-	// Check D1 database
-	let dbStatus: "ok" | "error" = "error";
-	let dbLatency = 0;
-	try {
-		const dbStart = Date.now();
-		await c.env.DB.prepare("SELECT 1").first();
-		dbLatency = Date.now() - dbStart;
-		dbStatus = "ok";
-	} catch {
-		dbStatus = "error";
-	}
-
-	// Determine overall status
-	const status: "healthy" | "degraded" | "unhealthy" = dbStatus === "ok" ? "healthy" : "unhealthy";
-
-	const result: HealthCheckResult = {
-		status,
-		database: { status: dbStatus, latency_ms: dbLatency },
-		durable_objects: { status: "ok" }, // DO health checked on demand
-		llm_providers: [], // LLM providers checked separately
-		queues: { status: "ok" }, // Queues assumed ok if Worker is running
-		r2: { status: "ok" }, // R2 checked on demand
-		checked_at: new Date().toISOString(),
-	};
-
-	const response: ApiResponse<HealthCheckResult> = {
-		success: true,
-		data: result,
-	};
-
-	return c.json(response, status === "healthy" ? 200 : 503);
 });
 
 // ============================================================================
