@@ -17,6 +17,7 @@ import {
 } from "./middleware";
 
 // Import API routes
+import { integrations } from "./api/integrations";
 import { providers } from "./api/providers";
 import { routingRules } from "./api/routing-rules";
 import { signup } from "./api/signup";
@@ -54,7 +55,9 @@ app.route("/api/providers", providers);
 app.route("/api/routing-rules", routingRules);
 app.route("/api/signup", signup);
 app.route("/api/stripe", stripe);
+app.route("/api", integrations);
 app.route("/api", telegramApi);
+app.route("/oauth", integrations);
 app.route("/tg/webhook", telegramWebhook);
 
 // ============================================================================

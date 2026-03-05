@@ -63,13 +63,17 @@ export interface Env {
 
 	// OAuth integration credentials (per-provider, added as needed)
 	/** Google OAuth client ID (optional) */
-	GOOGLE_OAUTH_CLIENT_ID?: string;
+	GOOGLE_CLIENT_ID?: string;
 	/** Google OAuth client secret */
-	GOOGLE_OAUTH_CLIENT_SECRET?: string;
+	GOOGLE_CLIENT_SECRET?: string;
 	/** Notion OAuth client ID (optional) */
-	NOTION_OAUTH_CLIENT_ID?: string;
+	NOTION_CLIENT_ID?: string;
 	/** Notion OAuth client secret */
-	NOTION_OAUTH_CLIENT_SECRET?: string;
+	NOTION_CLIENT_SECRET?: string;
+	/** HubSpot OAuth client ID (optional) */
+	HUBSPOT_CLIENT_ID?: string;
+	/** HubSpot OAuth client secret */
+	HUBSPOT_CLIENT_SECRET?: string;
 
 	// Configuration
 	/** Current environment name */
