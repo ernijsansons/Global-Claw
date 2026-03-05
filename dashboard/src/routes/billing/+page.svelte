@@ -1,95 +1,95 @@
 <script lang="ts">
-	// Current plan
-	const currentPlan = {
-		name: 'Pro',
+// Current plan
+const _currentPlan = {
+	name: "Pro",
+	price: 79,
+	renewalDate: "2026-03-25",
+	usage: {
+		tokens: { used: 10000000, limit: 50000000, costUsed: 45.2, costRemaining: 74.8 },
+		messages: { used: 8924, limit: 10000, remaining: 76 },
+		agents: { used: 3, limit: 5 },
+	},
+};
+
+// Plan comparison
+const _plans = [
+	{
+		name: "Starter",
+		price: 29,
+		tokens: "5M",
+		messages: "2,500",
+		agents: "1",
+		prioritySupport: false,
+		customRoutes: false,
+		current: false,
+	},
+	{
+		name: "Pro",
 		price: 79,
-		renewalDate: '2026-03-25',
-		usage: {
-			tokens: { used: 10000000, limit: 50000000, costUsed: 45.20, costRemaining: 74.80 },
-			messages: { used: 8924, limit: 10000, remaining: 76 },
-			agents: { used: 3, limit: 5 }
-		}
-	};
+		tokens: "50M",
+		messages: "10,000",
+		agents: "5",
+		prioritySupport: true,
+		customRoutes: true,
+		current: true,
+	},
+	{
+		name: "Business",
+		price: 149,
+		tokens: "500M",
+		messages: "100,000",
+		agents: "25",
+		prioritySupport: true,
+		customRoutes: true,
+		current: false,
+	},
+	{
+		name: "Enterprise",
+		price: null,
+		tokens: "Unlimited",
+		messages: "Unlimited",
+		agents: "Unlimited",
+		prioritySupport: true,
+		customRoutes: true,
+		current: false,
+	},
+];
 
-	// Plan comparison
-	const plans = [
-		{
-			name: 'Starter',
-			price: 29,
-			tokens: '5M',
-			messages: '2,500',
-			agents: '1',
-			prioritySupport: false,
-			customRoutes: false,
-			current: false
-		},
-		{
-			name: 'Pro',
-			price: 79,
-			tokens: '50M',
-			messages: '10,000',
-			agents: '5',
-			prioritySupport: true,
-			customRoutes: true,
-			current: true
-		},
-		{
-			name: 'Business',
-			price: 149,
-			tokens: '500M',
-			messages: '100,000',
-			agents: '25',
-			prioritySupport: true,
-			customRoutes: true,
-			current: false
-		},
-		{
-			name: 'Enterprise',
-			price: null,
-			tokens: 'Unlimited',
-			messages: 'Unlimited',
-			agents: 'Unlimited',
-			prioritySupport: true,
-			customRoutes: true,
-			current: false
-		}
-	];
+// Invoice history
+const _invoices = [
+	{ date: "2026-02-25", amount: 79.0, status: "paid", id: "INV-2026-0225" },
+	{ date: "2026-01-25", amount: 79.0, status: "paid", id: "INV-2026-0125" },
+	{ date: "2025-12-25", amount: 79.0, status: "paid", id: "INV-2025-1225" },
+	{ date: "2025-11-25", amount: 49.0, status: "paid", id: "INV-2025-1125" },
+	{ date: "2025-10-25", amount: 49.0, status: "paid", id: "INV-2025-1025" },
+];
 
-	// Invoice history
-	const invoices = [
-		{ date: '2026-02-25', amount: 79.00, status: 'paid', id: 'INV-2026-0225' },
-		{ date: '2026-01-25', amount: 79.00, status: 'paid', id: 'INV-2026-0125' },
-		{ date: '2025-12-25', amount: 79.00, status: 'paid', id: 'INV-2025-1225' },
-		{ date: '2025-11-25', amount: 49.00, status: 'paid', id: 'INV-2025-1125' },
-		{ date: '2025-10-25', amount: 49.00, status: 'paid', id: 'INV-2025-1025' }
-	];
+// Referral program
+const _referral = {
+	code: "ERNIE-2026",
+	commissionRate: 20,
+	referrals: 3,
+	pending: 1,
+	earningsThisMonth: 47.4,
+};
 
-	// Referral program
-	const referral = {
-		code: 'ERNIE-2026',
-		commissionRate: 20,
-		referrals: 3,
-		pending: 1,
-		earningsThisMonth: 47.40
-	};
+// Tab state
+const _activeTab: "overview" | "plans" | "invoices" | "referral" = "overview";
 
-	// Tab state
-	let activeTab: 'overview' | 'plans' | 'invoices' | 'referral' = 'overview';
+function formatCurrency(amount: number): string {
+	return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
+}
 
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-	}
+function formatDate(dateStr: string): string {
+	const date = new Date(dateStr);
+	return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
-	function formatDate(dateStr: string): string {
-		const date = new Date(dateStr);
-		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-	}
-
-	function formatNumber(num: number): string {
-		if (num >= 1000000) return (num / 1000000).toFixed(0) + 'M';
-		if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-		return num.toString();
-	}
+function formatNumber(num: number): string {
+	if (num >= 1000000) return `${(num / 1000000).toFixed(0)}M`;
+	if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+	return num.toString();
+}
 </script>
 
 <div class="p-6 space-y-6">

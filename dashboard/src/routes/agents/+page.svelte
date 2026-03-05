@@ -1,113 +1,112 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { api } from "$lib/api";
-	import { tenantId } from "$lib/stores";
+import { api } from "$lib/api";
+import { onMount } from "svelte";
 
-	// Demo data for when not authenticated
-	const demoAgents = [
-		{
-			id: "1",
-			name: "Sales Assistant LV",
-			status: "online" as const,
-			llm_provider_slug: "anthropic",
-			llm_model: "claude-sonnet-4",
-			total_messages: 2847,
-			messages_today: 247,
-			languages: ["LV", "RU"],
-			created_at: "2026-01-15T10:00:00Z",
-		},
-		{
-			id: "2",
-			name: "Support Bot EN",
-			status: "online" as const,
-			llm_provider_slug: "qwen",
-			llm_model: "qwen-2.5-72b",
-			total_messages: 1523,
-			messages_today: 89,
-			languages: ["EN"],
-			created_at: "2026-02-01T14:30:00Z",
-		},
-		{
-			id: "3",
-			name: "Data Analyst",
-			status: "idle" as const,
-			llm_provider_slug: "openai",
-			llm_model: "gpt-4o",
-			total_messages: 456,
-			messages_today: 0,
-			languages: ["EN", "DE"],
-			created_at: "2026-02-20T09:15:00Z",
-		},
-		{
-			id: "4",
-			name: "Lead Qualifier",
-			status: "error" as const,
-			llm_provider_slug: "anthropic",
-			llm_model: "claude-haiku-4",
-			total_messages: 892,
-			messages_today: 0,
-			languages: ["LV", "RU", "EN"],
-			created_at: "2026-03-01T16:45:00Z",
-		},
-	];
+// Demo data for when not authenticated
+const demoAgents = [
+	{
+		id: "1",
+		name: "Sales Assistant LV",
+		status: "online" as const,
+		llm_provider_slug: "anthropic",
+		llm_model: "claude-sonnet-4",
+		total_messages: 2847,
+		messages_today: 247,
+		languages: ["LV", "RU"],
+		created_at: "2026-01-15T10:00:00Z",
+	},
+	{
+		id: "2",
+		name: "Support Bot EN",
+		status: "online" as const,
+		llm_provider_slug: "qwen",
+		llm_model: "qwen-2.5-72b",
+		total_messages: 1523,
+		messages_today: 89,
+		languages: ["EN"],
+		created_at: "2026-02-01T14:30:00Z",
+	},
+	{
+		id: "3",
+		name: "Data Analyst",
+		status: "idle" as const,
+		llm_provider_slug: "openai",
+		llm_model: "gpt-4o",
+		total_messages: 456,
+		messages_today: 0,
+		languages: ["EN", "DE"],
+		created_at: "2026-02-20T09:15:00Z",
+	},
+	{
+		id: "4",
+		name: "Lead Qualifier",
+		status: "error" as const,
+		llm_provider_slug: "anthropic",
+		llm_model: "claude-haiku-4",
+		total_messages: 892,
+		messages_today: 0,
+		languages: ["LV", "RU", "EN"],
+		created_at: "2026-03-01T16:45:00Z",
+	},
+];
 
-	type Agent = (typeof demoAgents)[0];
-	let agents: Agent[] = demoAgents;
-	let loading = true;
-	let error: string | null = null;
-	let selectedAgent: Agent | null = null;
-	let searchQuery = "";
-	let statusFilter = "all";
+type Agent = (typeof demoAgents)[0];
+let agents: Agent[] = demoAgents;
+let _loading = true;
+let _error: string | null = null;
+const _selectedAgent: Agent | null = null;
+const searchQuery = "";
+const statusFilter = "all";
 
-	onMount(async () => {
-		if ($tenantId) {
-			try {
-				const response = await api.getAgents($tenantId);
-				if (response.success && response.data) {
-					agents = response.data as Agent[];
-				}
-			} catch {
-				error = "Failed to load agents";
+onMount(async () => {
+	if ($tenantId) {
+		try {
+			const response = await api.getAgents($tenantId);
+			if (response.success && response.data) {
+				agents = response.data as Agent[];
 			}
+		} catch {
+			_error = "Failed to load agents";
 		}
-		loading = false;
+	}
+	_loading = false;
+});
+
+function getStatusClass(status: string) {
+	switch (status) {
+		case "online":
+			return "gc-status-online";
+		case "idle":
+			return "gc-status-idle";
+		default:
+			return "gc-status-error";
+	}
+}
+
+function getStatusLabel(status: string) {
+	switch (status) {
+		case "online":
+			return "Online";
+		case "idle":
+			return "Sleeping";
+		default:
+			return "Error";
+	}
+}
+
+function formatDate(dateStr: string) {
+	return new Date(dateStr).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
 	});
+}
 
-	function getStatusClass(status: string) {
-		switch (status) {
-			case "online":
-				return "gc-status-online";
-			case "idle":
-				return "gc-status-idle";
-			default:
-				return "gc-status-error";
-		}
-	}
-
-	function getStatusLabel(status: string) {
-		switch (status) {
-			case "online":
-				return "Online";
-			case "idle":
-				return "Sleeping";
-			default:
-				return "Error";
-		}
-	}
-
-	function formatDate(dateStr: string) {
-		return new Date(dateStr).toLocaleDateString("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		});
-	}
-
-	$: filteredAgents = agents.filter((agent) => {
-		const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase());
-		const matchesStatus = statusFilter === "all" || agent.status === statusFilter;
-		return matchesSearch && matchesStatus;
-	});
+$: filteredAgents = agents.filter((agent) => {
+	const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase());
+	const matchesStatus = statusFilter === "all" || agent.status === statusFilter;
+	return matchesSearch && matchesStatus;
+});
 </script>
 
 <svelte:head>

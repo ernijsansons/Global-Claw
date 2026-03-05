@@ -1,104 +1,105 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { api } from "$lib/api";
+import { api } from "$lib/api";
+import { onMount } from "svelte";
 
-	// Demo providers
-	const demoProviders = [
-		{
-			id: "1",
-			slug: "anthropic",
-			name: "Anthropic Claude",
-			is_enabled: true,
-			models: ["claude-sonnet-4", "claude-haiku-4", "claude-opus-4"],
-			pricing: { input: 3, output: 15 },
-			usage_pct: 67,
-			cost_usd: 82.91,
-			latency_ms: 1200,
-			health_pct: 99.9,
-		},
-		{
-			id: "2",
-			slug: "qwen",
-			name: "Alibaba Qwen",
-			is_enabled: true,
-			models: ["qwen-2.5-72b", "qwen-2.5-7b"],
-			pricing: { input: 0.27, output: 1.1 },
-			usage_pct: 28,
-			cost_usd: 35.83,
-			latency_ms: 800,
-			health_pct: 99.2,
-		},
-		{
-			id: "3",
-			slug: "openai",
-			name: "OpenAI",
-			is_enabled: false,
-			models: ["gpt-4o", "gpt-4o-mini"],
-			pricing: { input: 5, output: 15 },
-			usage_pct: 5,
-			cost_usd: 9.1,
-			latency_ms: 1500,
-			health_pct: 98.5,
-		},
-	];
+// Demo providers
+const demoProviders = [
+	{
+		id: "1",
+		slug: "anthropic",
+		name: "Anthropic Claude",
+		is_enabled: true,
+		models: ["claude-sonnet-4", "claude-haiku-4", "claude-opus-4"],
+		pricing: { input: 3, output: 15 },
+		usage_pct: 67,
+		cost_usd: 82.91,
+		latency_ms: 1200,
+		health_pct: 99.9,
+	},
+	{
+		id: "2",
+		slug: "qwen",
+		name: "Alibaba Qwen",
+		is_enabled: true,
+		models: ["qwen-2.5-72b", "qwen-2.5-7b"],
+		pricing: { input: 0.27, output: 1.1 },
+		usage_pct: 28,
+		cost_usd: 35.83,
+		latency_ms: 800,
+		health_pct: 99.2,
+	},
+	{
+		id: "3",
+		slug: "openai",
+		name: "OpenAI",
+		is_enabled: false,
+		models: ["gpt-4o", "gpt-4o-mini"],
+		pricing: { input: 5, output: 15 },
+		usage_pct: 5,
+		cost_usd: 9.1,
+		latency_ms: 1500,
+		health_pct: 98.5,
+	},
+];
 
-	const demoRoutingRules = [
-		{
-			id: "1",
-			condition: 'task = "complex reasoning"',
-			routes: [
-				{ model: "claude-sonnet-4", weight: 80 },
-				{ model: "qwen-2.5-72b", weight: 20 },
-			],
-		},
-		{
-			id: "2",
-			condition: 'task = "simple chat"',
-			routes: [
-				{ model: "qwen-2.5-7b", weight: 90 },
-				{ model: "claude-haiku-4", weight: 10 },
-			],
-		},
-	];
+const _demoRoutingRules = [
+	{
+		id: "1",
+		condition: 'task = "complex reasoning"',
+		routes: [
+			{ model: "claude-sonnet-4", weight: 80 },
+			{ model: "qwen-2.5-72b", weight: 20 },
+		],
+	},
+	{
+		id: "2",
+		condition: 'task = "simple chat"',
+		routes: [
+			{ model: "qwen-2.5-7b", weight: 90 },
+			{ model: "claude-haiku-4", weight: 10 },
+		],
+	},
+];
 
-	const demoCostData = {
-		today: 23.4,
-		month: 487.2,
-		budget: 600,
-		trend: [12, 18, 22, 28, 35, 42, 38, 32, 28, 24, 20, 18, 15, 12, 14, 16, 20, 25, 30, 28, 24, 22, 20, 18, 16, 20, 24, 28, 26, 23],
-	};
+const _demoCostData = {
+	today: 23.4,
+	month: 487.2,
+	budget: 600,
+	trend: [
+		12, 18, 22, 28, 35, 42, 38, 32, 28, 24, 20, 18, 15, 12, 14, 16, 20, 25, 30, 28, 24, 22, 20, 18, 16, 20, 24, 28, 26,
+		23,
+	],
+};
 
-	type Provider = (typeof demoProviders)[0];
-	let providers: Provider[] = demoProviders;
-	let loading = true;
-	let editingProvider: Provider | null = null;
+type Provider = (typeof demoProviders)[0];
+let providers: Provider[] = demoProviders;
+let _loading = true;
+const _editingProvider: Provider | null = null;
 
-	onMount(async () => {
-		try {
-			const response = await api.getProviders();
-			if (response.success && response.data) {
-				// Merge demo data with actual data
-				providers = response.data.map((p: { slug: string }) => {
-					const demo = demoProviders.find((d) => d.slug === p.slug);
-					return { ...demo, ...p };
-				}) as Provider[];
-			}
-		} catch {
-			// Use demo data
+onMount(async () => {
+	try {
+		const response = await api.getProviders();
+		if (response.success && response.data) {
+			// Merge demo data with actual data
+			providers = response.data.map((p: { slug: string }) => {
+				const demo = demoProviders.find((d) => d.slug === p.slug);
+				return { ...demo, ...p };
+			}) as Provider[];
 		}
-		loading = false;
-	});
-
-	async function toggleProvider(provider: Provider) {
-		try {
-			await api.updateProvider(provider.id, { is_enabled: !provider.is_enabled });
-			providers = providers.map((p) =>
-				p.id === provider.id ? { ...p, is_enabled: !p.is_enabled } : p
-			);
-		} catch {
-			// Handle error
-		}
+	} catch {
+		// Use demo data
 	}
+	_loading = false;
+});
+
+async function toggleProvider(provider: Provider) {
+	try {
+		await api.updateProvider(provider.id, { is_enabled: !provider.is_enabled });
+		providers = providers.map((p) => (p.id === provider.id ? { ...p, is_enabled: !p.is_enabled } : p));
+	} catch {
+		// Handle error
+	}
+}
 </script>
 
 <svelte:head>

@@ -1,88 +1,86 @@
 <script lang="ts">
-	// Active tab
-	let activeTab: 'team' | 'api-keys' | 'branding' | 'notifications' | 'danger' = 'team';
+// Active tab
+const _activeTab: "team" | "api-keys" | "branding" | "notifications" | "danger" = "team";
 
-	// Team members
-	const teamMembers = [
-		{ id: '1', name: 'Ernie Ismail', email: 'ernie@acmecorp.com', role: 'owner', avatar: 'EI' },
-		{ id: '2', name: 'Jane Smith', email: 'jane@acmecorp.com', role: 'admin', avatar: 'JS' },
-		{ id: '3', name: 'Bob Johnson', email: 'bob@acmecorp.com', role: 'member', avatar: 'BJ' }
-	];
+// Team members
+const _teamMembers = [
+	{ id: "1", name: "Ernie Ismail", email: "ernie@acmecorp.com", role: "owner", avatar: "EI" },
+	{ id: "2", name: "Jane Smith", email: "jane@acmecorp.com", role: "admin", avatar: "JS" },
+	{ id: "3", name: "Bob Johnson", email: "bob@acmecorp.com", role: "member", avatar: "BJ" },
+];
 
-	const pendingInvites = [
-		{ email: 'invited@acmecorp.com', sentAt: '2026-03-03' }
-	];
+const _pendingInvites = [{ email: "invited@acmecorp.com", sentAt: "2026-03-03" }];
 
-	// Invite form
-	let inviteEmail = '';
-	let inviteRole = 'member';
+// Invite form
+const _inviteEmail = "";
+const _inviteRole = "member";
 
-	// API keys
-	const apiKeys = [
-		{
-			id: '1',
-			name: 'Production Key',
-			keyPreview: 'gc_live_••••••••••••••••••••••••••••••',
-			createdAt: '2026-01-15',
-			lastUsed: '2026-03-05',
-			scopes: ['agents.read', 'agents.write', 'conversations.read']
-		},
-		{
-			id: '2',
-			name: 'Staging Key',
-			keyPreview: 'gc_test_••••••••••••••••••••••••••••••',
-			createdAt: '2026-02-10',
-			lastUsed: '2026-03-04',
-			scopes: ['agents.read', 'workflows.read']
-		}
-	];
+// API keys
+const _apiKeys = [
+	{
+		id: "1",
+		name: "Production Key",
+		keyPreview: "gc_live_••••••••••••••••••••••••••••••",
+		createdAt: "2026-01-15",
+		lastUsed: "2026-03-05",
+		scopes: ["agents.read", "agents.write", "conversations.read"],
+	},
+	{
+		id: "2",
+		name: "Staging Key",
+		keyPreview: "gc_test_••••••••••••••••••••••••••••••",
+		createdAt: "2026-02-10",
+		lastUsed: "2026-03-04",
+		scopes: ["agents.read", "workflows.read"],
+	},
+];
 
-	// New key form
-	let newKeyName = '';
-	let newKeyScopes = {
-		agentsRead: true,
-		agentsWrite: true,
-		conversationsRead: true,
-		workflowsRead: true,
-		workflowsWrite: true,
-		adminRead: false,
-		adminWrite: false
+// New key form
+const _newKeyName = "";
+const _newKeyScopes = {
+	agentsRead: true,
+	agentsWrite: true,
+	conversationsRead: true,
+	workflowsRead: true,
+	workflowsWrite: true,
+	adminRead: false,
+	adminWrite: false,
+};
+
+// Branding settings
+const _brandingLogo: string | null = null;
+const _primaryColor = "#3B82F6";
+const _accentColor = "#8B5CF6";
+const _widgetName = "My Company Chatbot";
+const _useCustomDomain = false;
+const _customSubdomain = "";
+
+// Notification settings
+const _notifications = {
+	dailySummary: true,
+	agentErrors: true,
+	usageLimit: true,
+	newTeamMember: false,
+	telegramCritical: true,
+	telegramDaily: false,
+};
+
+// Delete confirmation
+const _deleteConfirmation = "";
+
+function formatDate(dateStr: string): string {
+	const date = new Date(dateStr);
+	return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function getRoleColor(role: string): string {
+	const colors: Record<string, string> = {
+		owner: "gc-accent-amber",
+		admin: "gc-accent-blue",
+		member: "gc-text-secondary",
 	};
-
-	// Branding settings
-	let brandingLogo: string | null = null;
-	let primaryColor = '#3B82F6';
-	let accentColor = '#8B5CF6';
-	let widgetName = 'My Company Chatbot';
-	let useCustomDomain = false;
-	let customSubdomain = '';
-
-	// Notification settings
-	let notifications = {
-		dailySummary: true,
-		agentErrors: true,
-		usageLimit: true,
-		newTeamMember: false,
-		telegramCritical: true,
-		telegramDaily: false
-	};
-
-	// Delete confirmation
-	let deleteConfirmation = '';
-
-	function formatDate(dateStr: string): string {
-		const date = new Date(dateStr);
-		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-	}
-
-	function getRoleColor(role: string): string {
-		const colors: Record<string, string> = {
-			owner: 'gc-accent-amber',
-			admin: 'gc-accent-blue',
-			member: 'gc-text-secondary'
-		};
-		return colors[role] || 'gc-text-secondary';
-	}
+	return colors[role] || "gc-text-secondary";
+}
 </script>
 
 <div class="p-6 space-y-6">

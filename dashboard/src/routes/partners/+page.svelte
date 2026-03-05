@@ -1,133 +1,133 @@
 <script lang="ts">
-	// Partner profile
-	const partner = {
-		id: 'PARTNER-001',
-		name: 'Ernie Ismail',
-		email: 'ernie@acmecorp.com',
-		tier: 'Premium',
-		referralCode: 'ERNIE-2026',
-		commissionRate: 50,
-		joinedAt: '2025-12-01',
-		status: 'active'
+// Partner profile
+const partner = {
+	id: "PARTNER-001",
+	name: "Ernie Ismail",
+	email: "ernie@acmecorp.com",
+	tier: "Premium",
+	referralCode: "ERNIE-2026",
+	commissionRate: 50,
+	joinedAt: "2025-12-01",
+	status: "active",
+};
+
+// Earnings overview
+const _earnings = {
+	thisMonth: 1247.5,
+	lastMonth: 980.0,
+	allTime: 8542.3,
+	pending: 320.0,
+	nextPayout: "2026-03-15",
+};
+
+// Active tenants
+const _tenants = [
+	{
+		id: "1",
+		name: "TechStartup Inc",
+		plan: "pro",
+		mrr: 79,
+		commission: 39.5,
+		status: "active",
+		createdAt: "2026-01-15",
+	},
+	{
+		id: "2",
+		name: "Local Services",
+		plan: "business",
+		mrr: 149,
+		commission: 74.5,
+		status: "active",
+		createdAt: "2026-02-01",
+	},
+	{
+		id: "3",
+		name: "Marketing Agency",
+		plan: "pro",
+		mrr: 79,
+		commission: 39.5,
+		status: "active",
+		createdAt: "2026-02-15",
+	},
+	{
+		id: "4",
+		name: "E-commerce Store",
+		plan: "starter",
+		mrr: 29,
+		commission: 14.5,
+		status: "active",
+		createdAt: "2026-02-28",
+	},
+	{
+		id: "5",
+		name: "Digital Agency",
+		plan: "pro",
+		mrr: 79,
+		commission: 39.5,
+		status: "trial",
+		createdAt: "2026-03-01",
+	},
+];
+
+// Referral tracking
+const _referralStats = {
+	clicks: 847,
+	signups: 42,
+	converted: 12,
+	conversionRate: 28.6,
+};
+
+// Commission history
+const _commissionHistory = [
+	{ month: "Feb 2026", amount: 980.0, tenants: 4, status: "paid" },
+	{ month: "Jan 2026", amount: 1120.0, tenants: 5, status: "paid" },
+	{ month: "Dec 2025", amount: 890.5, tenants: 4, status: "paid" },
+];
+
+// Active tab
+const _activeTab: "overview" | "tenants" | "commissions" | "resources" = "overview";
+
+// Spawn tenant modal
+const _showSpawnModal = false;
+const _spawnForm = {
+	name: "",
+	email: "",
+	plan: "pro",
+	notes: "",
+};
+
+function formatCurrency(amount: number): string {
+	return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
+}
+
+function formatDate(dateStr: string): string {
+	const date = new Date(dateStr);
+	return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function getPlanColor(plan: string): string {
+	const colors: Record<string, string> = {
+		starter: "gc-text-secondary",
+		pro: "gc-accent-blue",
+		business: "gc-accent-violet",
+		enterprise: "gc-accent-amber",
 	};
+	return colors[plan] || "gc-text-secondary";
+}
 
-	// Earnings overview
-	const earnings = {
-		thisMonth: 1247.50,
-		lastMonth: 980.00,
-		allTime: 8542.30,
-		pending: 320.00,
-		nextPayout: '2026-03-15'
+function getTierColor(tier: string): string {
+	const colors: Record<string, string> = {
+		Affiliate: "gc-text-secondary",
+		Partner: "gc-accent-blue",
+		Premium: "gc-accent-violet",
+		Master: "gc-accent-amber",
 	};
+	return colors[tier] || "gc-text-secondary";
+}
 
-	// Active tenants
-	const tenants = [
-		{
-			id: '1',
-			name: 'TechStartup Inc',
-			plan: 'pro',
-			mrr: 79,
-			commission: 39.50,
-			status: 'active',
-			createdAt: '2026-01-15'
-		},
-		{
-			id: '2',
-			name: 'Local Services',
-			plan: 'business',
-			mrr: 149,
-			commission: 74.50,
-			status: 'active',
-			createdAt: '2026-02-01'
-		},
-		{
-			id: '3',
-			name: 'Marketing Agency',
-			plan: 'pro',
-			mrr: 79,
-			commission: 39.50,
-			status: 'active',
-			createdAt: '2026-02-15'
-		},
-		{
-			id: '4',
-			name: 'E-commerce Store',
-			plan: 'starter',
-			mrr: 29,
-			commission: 14.50,
-			status: 'active',
-			createdAt: '2026-02-28'
-		},
-		{
-			id: '5',
-			name: 'Digital Agency',
-			plan: 'pro',
-			mrr: 79,
-			commission: 39.50,
-			status: 'trial',
-			createdAt: '2026-03-01'
-		}
-	];
-
-	// Referral tracking
-	const referralStats = {
-		clicks: 847,
-		signups: 42,
-		converted: 12,
-		conversionRate: 28.6
-	};
-
-	// Commission history
-	const commissionHistory = [
-		{ month: 'Feb 2026', amount: 980.00, tenants: 4, status: 'paid' },
-		{ month: 'Jan 2026', amount: 1120.00, tenants: 5, status: 'paid' },
-		{ month: 'Dec 2025', amount: 890.50, tenants: 4, status: 'paid' }
-	];
-
-	// Active tab
-	let activeTab: 'overview' | 'tenants' | 'commissions' | 'resources' = 'overview';
-
-	// Spawn tenant modal
-	let showSpawnModal = false;
-	let spawnForm = {
-		name: '',
-		email: '',
-		plan: 'pro',
-		notes: ''
-	};
-
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-	}
-
-	function formatDate(dateStr: string): string {
-		const date = new Date(dateStr);
-		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-	}
-
-	function getPlanColor(plan: string): string {
-		const colors: Record<string, string> = {
-			starter: 'gc-text-secondary',
-			pro: 'gc-accent-blue',
-			business: 'gc-accent-violet',
-			enterprise: 'gc-accent-amber'
-		};
-		return colors[plan] || 'gc-text-secondary';
-	}
-
-	function getTierColor(tier: string): string {
-		const colors: Record<string, string> = {
-			Affiliate: 'gc-text-secondary',
-			Partner: 'gc-accent-blue',
-			Premium: 'gc-accent-violet',
-			Master: 'gc-accent-amber'
-		};
-		return colors[tier] || 'gc-text-secondary';
-	}
-
-	function copyReferralLink() {
-		navigator.clipboard.writeText(`https://global-claw.com/?ref=${partner.referralCode}`);
-	}
+function copyReferralLink() {
+	navigator.clipboard.writeText(`https://global-claw.com/?ref=${partner.referralCode}`);
+}
 </script>
 
 <div class="p-6 space-y-6">

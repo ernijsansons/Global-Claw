@@ -1,115 +1,114 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { api } from "$lib/api";
-	import { tenantId } from "$lib/stores";
+import { api } from "$lib/api";
+import { onMount } from "svelte";
 
-	// Demo workflows
-	const demoWorkflows = [
-		{
-			id: "1",
-			name: "Onboarding Flow",
-			status: "running" as const,
-			nodes: 8,
-			last_run: "2 min ago",
-			runs_today: 23,
-			success_rate: 98.5,
-			created_at: "2026-01-20T10:00:00Z",
-		},
-		{
-			id: "2",
-			name: "Support Triage",
-			status: "running" as const,
-			nodes: 5,
-			last_run: "5 min ago",
-			runs_today: 47,
-			success_rate: 99.2,
-			created_at: "2026-02-05T14:30:00Z",
-		},
-		{
-			id: "3",
-			name: "Data Sync",
-			status: "paused" as const,
-			nodes: 12,
-			last_run: "1 hour ago",
-			runs_today: 6,
-			success_rate: 95.0,
-			created_at: "2026-02-15T09:15:00Z",
-		},
-		{
-			id: "4",
-			name: "Lead Qualification",
-			status: "running" as const,
-			nodes: 6,
-			last_run: "12 min ago",
-			runs_today: 15,
-			success_rate: 97.8,
-			created_at: "2026-03-01T16:45:00Z",
-		},
-	];
+// Demo workflows
+const demoWorkflows = [
+	{
+		id: "1",
+		name: "Onboarding Flow",
+		status: "running" as const,
+		nodes: 8,
+		last_run: "2 min ago",
+		runs_today: 23,
+		success_rate: 98.5,
+		created_at: "2026-01-20T10:00:00Z",
+	},
+	{
+		id: "2",
+		name: "Support Triage",
+		status: "running" as const,
+		nodes: 5,
+		last_run: "5 min ago",
+		runs_today: 47,
+		success_rate: 99.2,
+		created_at: "2026-02-05T14:30:00Z",
+	},
+	{
+		id: "3",
+		name: "Data Sync",
+		status: "paused" as const,
+		nodes: 12,
+		last_run: "1 hour ago",
+		runs_today: 6,
+		success_rate: 95.0,
+		created_at: "2026-02-15T09:15:00Z",
+	},
+	{
+		id: "4",
+		name: "Lead Qualification",
+		status: "running" as const,
+		nodes: 6,
+		last_run: "12 min ago",
+		runs_today: 15,
+		success_rate: 97.8,
+		created_at: "2026-03-01T16:45:00Z",
+	},
+];
 
-	// Demo workflow nodes for visual editor
-	const demoNodes = [
-		{ id: "start", type: "trigger", label: "Start", x: 100, y: 200 },
-		{ id: "route", type: "condition", label: "Route by Language", x: 300, y: 200 },
-		{ id: "lv", type: "action", label: "LV Handler", x: 500, y: 100 },
-		{ id: "en", type: "action", label: "EN Handler", x: 500, y: 200 },
-		{ id: "ru", type: "action", label: "RU Handler", x: 500, y: 300 },
-		{ id: "respond", type: "action", label: "Send Response", x: 700, y: 200 },
-	];
+// Demo workflow nodes for visual editor
+const demoNodes = [
+	{ id: "start", type: "trigger", label: "Start", x: 100, y: 200 },
+	{ id: "route", type: "condition", label: "Route by Language", x: 300, y: 200 },
+	{ id: "lv", type: "action", label: "LV Handler", x: 500, y: 100 },
+	{ id: "en", type: "action", label: "EN Handler", x: 500, y: 200 },
+	{ id: "ru", type: "action", label: "RU Handler", x: 500, y: 300 },
+	{ id: "respond", type: "action", label: "Send Response", x: 700, y: 200 },
+];
 
-	const demoEdges = [
-		{ from: "start", to: "route" },
-		{ from: "route", to: "lv" },
-		{ from: "route", to: "en" },
-		{ from: "route", to: "ru" },
-		{ from: "lv", to: "respond" },
-		{ from: "en", to: "respond" },
-		{ from: "ru", to: "respond" },
-	];
+const _demoEdges = [
+	{ from: "start", to: "route" },
+	{ from: "route", to: "lv" },
+	{ from: "route", to: "en" },
+	{ from: "route", to: "ru" },
+	{ from: "lv", to: "respond" },
+	{ from: "en", to: "respond" },
+	{ from: "ru", to: "respond" },
+];
 
-	type Workflow = (typeof demoWorkflows)[0];
-	let workflows: Workflow[] = demoWorkflows;
-	let loading = true;
-	let selectedWorkflow: Workflow | null = demoWorkflows[0];
-	let inspectorNode: (typeof demoNodes)[0] | null = null;
+type Workflow = (typeof demoWorkflows)[0];
+let _workflows: Workflow[] = demoWorkflows;
+let _loading = true;
+const _selectedWorkflow: Workflow | null = demoWorkflows[0];
+const _inspectorNode: (typeof demoNodes)[0] | null = null;
 
-	onMount(async () => {
-		if ($tenantId) {
-			try {
-				const response = await api.getWorkflows($tenantId);
-				if (response.success && response.data) {
-					workflows = response.data as Workflow[];
-				}
-			} catch {
-				// Use demo data
+onMount(async () => {
+	if ($tenantId) {
+		try {
+			const response = await api.getWorkflows($tenantId);
+			if (response.success && response.data) {
+				_workflows = response.data as Workflow[];
 			}
-		}
-		loading = false;
-	});
-
-	function getStatusClass(status: string) {
-		switch (status) {
-			case "running":
-				return "gc-status-online";
-			case "paused":
-				return "gc-status-idle";
-			default:
-				return "gc-status-error";
+		} catch {
+			// Use demo data
 		}
 	}
+	_loading = false;
+});
 
-	function getNodeTypeColor(type: string) {
-		switch (type) {
-			case "trigger":
-				return "bg-gc-accent-emerald";
-			case "condition":
-				return "bg-gc-accent-amber";
-			case "action":
-				return "bg-gc-accent-blue";
-			default:
-				return "bg-gc-accent-violet";
-		}
+function getStatusClass(status: string) {
+	switch (status) {
+		case "running":
+			return "gc-status-online";
+		case "paused":
+			return "gc-status-idle";
+		default:
+			return "gc-status-error";
 	}
+}
+
+function getNodeTypeColor(type: string) {
+	switch (type) {
+		case "trigger":
+			return "bg-gc-accent-emerald";
+		case "condition":
+			return "bg-gc-accent-amber";
+		case "action":
+			return "bg-gc-accent-blue";
+		default:
+			return "bg-gc-accent-violet";
+	}
+}
 </script>
 
 <svelte:head>
