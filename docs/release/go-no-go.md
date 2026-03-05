@@ -15,7 +15,7 @@
 
 | Check | Status | Notes |
 |-------|--------|-------|
-| `npm run lint` | PASS | 4 complexity warnings (cosmetic) |
+| `npm run lint` | PASS | 14 complexity warnings (cosmetic, not blocking) |
 | `npm run typecheck` | PASS | 0 errors |
 | `npm run test` | PASS | 97/97 tests |
 | `npm run verify:contracts` | PASS | All contracts validated |
@@ -46,8 +46,8 @@
 | Deployed to staging | PASS | Version 8e715ae1 |
 | Health endpoint | PASS | Returns 200 OK |
 | Root endpoint | PASS | Returns API info |
-| Auth flow | PENDING | Manual verification |
-| Error handling | PASS | 401/404 working |
+| Auth protection | PASS | Returns 401 for unauthenticated requests |
+| Error handling | PASS | 401/404 working correctly |
 
 ## Abort Conditions
 

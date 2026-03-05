@@ -87,7 +87,7 @@ If dashboard changes are included:
 
 ```bash
 cd dashboard && npm install && npm run build
-npx wrangler pages deploy build --project-name global-claw-dashboard --branch production
+npx wrangler pages deploy .svelte-kit/cloudflare --project-name global-claw-dashboard --branch production
 ```
 
 ## Post-Deployment Verification
