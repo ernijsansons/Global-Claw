@@ -43,7 +43,7 @@
 
 | Check | Status | Notes |
 |-------|--------|-------|
-| Deployed to staging | PASS | Version 8e715ae1 |
+| Deployed to staging | PASS | Version 2b9d1ec1 |
 | Health endpoint | PASS | Returns 200 OK |
 | Root endpoint | PASS | Returns API info |
 | Auth protection | PASS | Returns 401 for unauthenticated requests |
