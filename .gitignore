@@ -23,3 +23,5 @@ dashboard/node_modules/
 # OS/editor noise
 .DS_Store
 Thumbs.db
+.fuse_hidden*
+**/.fuse_hidden*
