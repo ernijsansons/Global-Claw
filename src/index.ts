@@ -17,12 +17,16 @@ import {
 } from "./middleware";
 
 // Import API routes
+import { analytics, llmCost, overview } from "./api/dashboard";
 import { integrations } from "./api/integrations";
+import { memory } from "./api/memory";
+import { partners } from "./api/partners";
 import { providers } from "./api/providers";
 import { routingRules } from "./api/routing-rules";
 import { signup } from "./api/signup";
 import { stripe } from "./api/stripe";
 import { telegramApi } from "./api/telegram";
+import { ws } from "./api/ws";
 import { telegramWebhook } from "./telegram";
 
 // Create Hono app with typed environment
@@ -55,8 +59,14 @@ app.route("/api/providers", providers);
 app.route("/api/routing-rules", routingRules);
 app.route("/api/signup", signup);
 app.route("/api/stripe", stripe);
+app.route("/api/partners", partners);
+app.route("/api/dashboard", overview);
+app.route("/api/dashboard", analytics);
+app.route("/api/dashboard", llmCost);
+app.route("/api", memory);
 app.route("/api", integrations);
 app.route("/api", telegramApi);
+app.route("/api", ws);
 app.route("/oauth", integrations);
 app.route("/tg/webhook", telegramWebhook);
 
