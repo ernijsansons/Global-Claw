@@ -95,7 +95,7 @@ export function rateLimitMiddleware(): MiddlewareHandler<{ Bindings: Env }> {
 
 		// Store updated data with TTL matching the window
 		const ttl = Math.ceil((data.resetAt - now) / 1000);
-		await kv.put(key, JSON.stringify(data), { expirationTtl: Math.max(ttl, 1) });
+		await kv.put(key, JSON.stringify(data), { expirationTtl: Math.max(ttl, 60) });
 
 		// Set rate limit headers
 		c.header("X-RateLimit-Limit", String(config.limit));
