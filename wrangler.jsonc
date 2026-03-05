@@ -1,0 +1,156 @@
+// Global-Claw — Cloudflare Workers Configuration
+// Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+{
+	"name": "global-claw",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-09-25",
+	"compatibility_flags": ["nodejs_compat"],
+	"placement": { "mode": "smart" },
+
+	// Durable Objects — per-tenant agent isolation
+	"durable_objects": {
+		"bindings": [{ "name": "TENANT_AGENT", "class_name": "TenantAgent" }]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["TenantAgent"] }],
+
+	// D1 — primary relational database
+	"d1_databases": [
+		{ "binding": "DB", "database_name": "global-claw-primary", "database_id": "51f1c24f-fc8b-411a-9d46-a3a8fee53222" }
+	],
+
+	// R2 — object storage for templates, exports, logs
+	"r2_buckets": [{ "binding": "ASSETS", "bucket_name": "global-claw-assets" }],
+
+	// KV — distributed rate limiting
+	"kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "8b23325891774864961c245d1f8fdb36" }],
+
+	// Queues — async event processing
+	"queues": {
+		"producers": [
+			{ "binding": "AUDIT_QUEUE", "queue": "global-claw-audit" },
+			{ "binding": "NOTIFICATION_QUEUE", "queue": "global-claw-notifications" }
+		],
+		"consumers": [
+			{
+				"queue": "global-claw-audit",
+				"max_batch_size": 10,
+				"max_retries": 3,
+				"dead_letter_queue": "global-claw-audit-dlq"
+			},
+			{
+				"queue": "global-claw-notifications",
+				"max_batch_size": 10,
+				"max_retries": 3,
+				"dead_letter_queue": "global-claw-notifications-dlq"
+			}
+		]
+	},
+
+	// Workers AI — embedding generation, classification
+	"ai": { "binding": "AI" },
+
+	// Workflows — durable multi-step processes
+	"workflows": [
+		{ "name": "tenant-provisioning", "binding": "PROVISIONING_WORKFLOW", "class_name": "TenantProvisioningWorkflow" }
+	],
+
+	// Vectorize — semantic memory search
+	"vectorize": [{ "binding": "MEMORY_INDEX", "index_name": "global-claw-memory" }],
+
+	// Cron Triggers — daily budget reset for all tenants
+	"triggers": {
+		"crons": ["0 0 * * *"]
+	},
+
+	// Environment variables (non-secret)
+	"vars": {
+		"ENVIRONMENT": "development",
+		"APP_URL": "http://localhost:8787",
+		"DASHBOARD_URL": "http://localhost:3000",
+		"AI_GATEWAY_SLUG": "global-claw"
+	},
+
+	// ──────────────────────────────────────────────
+	// Multi-environment configuration
+	// RULE: Every stateful binding MUST be overridden per env.
+	// ──────────────────────────────────────────────
+	"env": {
+		"staging": {
+			"name": "global-claw-staging",
+			"vars": {
+				"ENVIRONMENT": "staging",
+				"APP_URL": "https://global-claw-staging.workers.dev",
+				"DASHBOARD_URL": "https://global-claw-dashboard.pages.dev"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "global-claw-primary",
+					"database_id": "51f1c24f-fc8b-411a-9d46-a3a8fee53222"
+				}
+			],
+			"kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "8b23325891774864961c245d1f8fdb36" }],
+			"r2_buckets": [{ "binding": "ASSETS", "bucket_name": "global-claw-assets-staging" }],
+			"queues": {
+				"producers": [
+					{ "binding": "AUDIT_QUEUE", "queue": "global-claw-audit-staging" },
+					{ "binding": "NOTIFICATION_QUEUE", "queue": "global-claw-notifications-staging" }
+				],
+				"consumers": [
+					{
+						"queue": "global-claw-audit-staging",
+						"max_batch_size": 10,
+						"max_retries": 3,
+						"dead_letter_queue": "global-claw-audit-staging-dlq"
+					},
+					{
+						"queue": "global-claw-notifications-staging",
+						"max_batch_size": 10,
+						"max_retries": 3,
+						"dead_letter_queue": "global-claw-notifications-staging-dlq"
+					}
+				]
+			},
+			"vectorize": [{ "binding": "MEMORY_INDEX", "index_name": "global-claw-memory-staging" }]
+		},
+		"production": {
+			"name": "global-claw",
+			"vars": {
+				"ENVIRONMENT": "production",
+				"APP_URL": "https://api.global-claw.com",
+				"DASHBOARD_URL": "https://app.global-claw.com"
+			},
+			"routes": [{ "pattern": "api.global-claw.com/*", "zone_name": "global-claw.com" }],
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "global-claw-primary",
+					"database_id": "d1306089-2049-44d7-b0d0-76fb99a74c96"
+				}
+			],
+			"kv_namespaces": [{ "binding": "RATE_LIMIT_KV", "id": "f5752fe85e134eb3b76f0dfecc6a6fb6" }],
+			"r2_buckets": [{ "binding": "ASSETS", "bucket_name": "global-claw-assets" }],
+			"queues": {
+				"producers": [
+					{ "binding": "AUDIT_QUEUE", "queue": "global-claw-audit" },
+					{ "binding": "NOTIFICATION_QUEUE", "queue": "global-claw-notifications" }
+				],
+				"consumers": [
+					{
+						"queue": "global-claw-audit",
+						"max_batch_size": 10,
+						"max_retries": 3,
+						"dead_letter_queue": "global-claw-audit-dlq"
+					},
+					{
+						"queue": "global-claw-notifications",
+						"max_batch_size": 10,
+						"max_retries": 3,
+						"dead_letter_queue": "global-claw-notifications-dlq"
+					}
+				]
+			},
+			"vectorize": [{ "binding": "MEMORY_INDEX", "index_name": "global-claw-memory" }]
+		}
+	}
+}

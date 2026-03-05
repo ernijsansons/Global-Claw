@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check: Does this file change hardcode any LLM provider (OpenAI, Anthropic, etc.) instead of using the provider-agnostic router from src/lib/llm/executor.ts? Does it leak tenant data across boundaries? Does it use require() instead of import? If any violation, respond with BLOCK and explain why. Otherwise respond with ALLOW."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check: Does this file import from AWS SDK, Vercel, Prisma, or any non-Cloudflare infrastructure? Global-Claw is Cloudflare-only. If violation found, respond BLOCK. Otherwise ALLOW."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx biome check --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "If the command just executed was 'wrangler deploy', remind the user which environment was targeted (staging or production) and warn if it was production. Otherwise ALLOW."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Before compacting, ensure the summary preserves: (1) Which migration files have been created/applied, (2) Current state of wrangler.jsonc bindings, (3) Which API routes are implemented vs pending, (4) Any failing tests, (5) Current implementation phase from the execution plan."
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx wrangler *)",
+      "Bash(npx vitest *)",
+      "Bash(npx biome *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(node scripts/*)",
+      "Bash(npx drizzle-kit *)",
+      "Bash(npx sv *)",
+      "Bash(npx tsc *)",
+      "Bash(git *)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(npx wrangler deploy --env production)"
+    ]
+  }
+}

@@ -1,0 +1,291 @@
+{
+  "$schema": "https://foundation.erlvinc.com/schemas/build-spec-v1.json",
+  "version": "3.0.0",
+  "generated": "2026-02-27T20:10:00Z",
+  "runId": "global-claw-mission-final",
+  "pipelineVersion": "18-phase-9.5",
+  "governance": {
+    "standard": "9.5 Mission-Critical",
+    "llmPolicy": "fail-closed",
+    "executorPath": "packages/shared/src/lib/llm/executor.ts",
+    "promptLoaderPath": "packages/shared/src/lib/llm/prompt-loader.ts",
+    "traceIdPattern": "x-foundation-trace-id:gc-{operation}-{timestamp}"
+  },
+  "project": {
+    "name": "Global Claw",
+    "description": "Telegram-first AI automation SaaS for non-US markets with 4-tier reseller distribution",
+    "domain": "global-claw.com"
+  },
+  "verdict": {
+    "decision": "GO",
+    "confidence": 0.896,
+    "killTestPassed": true,
+    "marginAnalysis": {
+      "starterPlan": { "rrp": 29, "margin": "50-57%" },
+      "proPlan": { "rrp": 79, "margin": "47-55%" },
+      "businessPlan": { "rrp": 149, "margin": "48-55%" }
+    }
+  },
+  "template": {
+    "recommended": "super-agent",
+    "rationale": "Full capabilities needed: Durable Objects for tenant isolation, Workflows for provisioning, multi-LLM routing, OAuth plugin system",
+    "alternatives": [
+      {
+        "name": "full-power-agent",
+        "when": "If shell/browser automation not needed"
+      }
+    ]
+  },
+  "cloudflareStack": {
+    "_workerTopologyNote": "IMPLEMENTATION DECISION: These 4 logical domains are served by a SINGLE Cloudflare Worker using Hono router path-based routing (see wrangler.jsonc 'main: src/index.ts'). The entries below describe routing domains, NOT separate Worker deployments.",
+    "workers": [
+      { "name": "api", "purpose": "Control plane API", "routes": ["/api/*"], "_note": "Hono route group in src/index.ts" },
+      { "name": "tg-webhook", "purpose": "Telegram ingest", "routes": ["/tg/webhook"], "_note": "Hono route in src/index.ts" },
+      { "name": "llm-router", "purpose": "Multi-provider LLM routing", "routes": ["internal RPC"], "_note": "Internal module call via src/lib/llm/executor.ts" },
+      { "name": "oauth", "purpose": "Plugin OAuth handlers", "routes": ["/oauth/*"], "_note": "Hono route group in src/index.ts" }
+    ],
+    "durableObjects": [
+      {
+        "class": "TenantAgent",
+        "purpose": "Per-tenant state, rate limits, budgets, connector tokens",
+        "isolation": "One DO per tenant"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "TenantProvisioning",
+        "purpose": "Zero-touch tenant setup (<10 seconds)",
+        "steps": [
+          "ValidateEvent",
+          "CreateUser",
+          "CreateTenant",
+          "AllocateSubdomain",
+          "SeedTemplates",
+          "CreateTenantDO",
+          "ActivateDefaultPacks",
+          "IssueApiKeys",
+          "NotifyUser"
+        ]
+      }
+    ],
+    "d1": {
+      "database": "global-claw-primary",
+      "tables": [
+        "tenants",
+        "users",
+        "tenant_users",
+        "subscriptions",
+        "plugin_connections",
+        "usage_daily"
+      ]
+    },
+    "r2": {
+      "bucket": "global-claw-assets",
+      "purpose": "Templates, exports, logs"
+    },
+    "kv": {
+      "namespace": "RATE_LIMIT_KV",
+      "purpose": "Distributed rate limiting"
+    },
+    "queues": {
+      "producers": ["audit", "notifications"]
+    },
+    "ai": {
+      "providers": [
+        { "name": "DeepSeek", "role": "primary", "weight": 70 },
+        { "name": "Kimi/Moonshot", "role": "secondary", "weight": 20 },
+        { "name": "MiniMax", "role": "tertiary", "weight": 10 }
+      ],
+      "budgetEnforcement": "Per-tenant daily token budget at DO level"
+    }
+  },
+  "dataModel": {
+    "tenants": "id, created_at, plan, status, subdomain, token_budget_daily, msg_budget_daily",
+    "users": "id, created_at, email, stripe_customer_id",
+    "tenant_users": "tenant_id, user_id, role (PRIMARY KEY tenant_id, user_id)",
+    "subscriptions": "tenant_id, stripe_subscription_id, status, current_period_end",
+    "plugin_connections": "id, tenant_id, agent_id, provider, oauth_access_token_encrypted, oauth_refresh_token_encrypted, status, scopes_json, created_at",
+    "usage_daily": "tenant_id, day, tokens, messages, tool_calls"
+  },
+  "apiRoutes": [
+    { "path": "/api/auth/register", "methods": ["POST"] },
+    { "path": "/api/auth/login", "methods": ["POST"] },
+    { "path": "/api/auth/refresh", "methods": ["POST"] },
+    { "path": "/api/tenants", "methods": ["GET", "POST"] },
+    { "path": "/api/tenants/:id", "methods": ["GET", "PATCH", "DELETE"] },
+    { "path": "/api/tenants/:id/agents", "methods": ["GET", "POST"] },
+    { "path": "/api/tenants/:id/workflows", "methods": ["GET", "POST"] },
+    { "path": "/api/tenants/:id/integrations", "methods": ["GET", "POST", "DELETE"] },
+    { "path": "/api/tenants/:id/memory", "methods": ["GET", "POST", "DELETE"] },
+    { "path": "/api/dashboard/overview", "methods": ["GET"] },
+    { "path": "/api/dashboard/analytics", "methods": ["GET"] },
+    { "path": "/api/dashboard/llm-cost", "methods": ["GET"] },
+    { "path": "/api/providers", "methods": ["GET", "POST", "PATCH", "DELETE"] },
+    { "path": "/api/routing-rules", "methods": ["GET", "POST", "PATCH", "DELETE"] },
+    { "path": "/api/signup", "methods": ["POST"] },
+    { "path": "/api/stripe/webhook", "methods": ["POST"] },
+    { "path": "/api/ws", "methods": ["GET"] },
+    { "path": "/tg/webhook/:agentId", "methods": ["POST"] },
+    { "path": "/api/health", "methods": ["GET"] }
+  ],
+  "frontend": {
+    "framework": "SvelteKit",
+    "pages": [
+      {
+        "name": "Dashboard",
+        "tabs": ["Overview", "Plugins", "Packs"],
+        "features": ["Usage meters", "Bot health", "API key management"]
+      },
+      {
+        "name": "Partner Portal",
+        "features": ["Tenant spawning", "Earnings dashboard", "Referral links"]
+      },
+      {
+        "name": "Marketing Site",
+        "features": ["Localized pricing", "Vertical landing pages", "Partner signup"]
+      }
+    ],
+    "localization": ["lv", "ru", "en", "de", "es", "it", "pl", "ar", "pt-br", "fr"]
+  },
+  "product": {
+    "packs": [
+      { "name": "Lead Capture", "description": "Qualifies inbound, routes to team, logs to CRM" },
+      { "name": "Appointment Intake", "description": "Takes bookings, confirms, syncs to calendar" },
+      { "name": "FAQ + Escalation", "description": "Answers questions, escalates to human" },
+      { "name": "Review Collector", "description": "Post-service feedback, routes 5-stars to reviews" },
+      { "name": "Internal Ops", "description": "Daily reminders, checklists, internal Q&A" }
+    ],
+    "plugins": [
+      { "name": "Google Calendar", "oauth": true },
+      { "name": "Google Sheets", "oauth": true },
+      { "name": "HubSpot", "oauth": true, "phase": 2 }
+    ]
+  },
+  "resellerProgram": {
+    "tiers": [
+      { "name": "Affiliate", "margin": "30% recurring × 24mo", "requirements": "None" },
+      { "name": "Partner", "margin": "40% off RRP", "requirements": "5 active tenants" },
+      { "name": "Premium", "margin": "50% off RRP", "requirements": "25 tenants OR €500 MRR", "whiteLabel": true },
+      { "name": "Master", "margin": "55% off RRP + 10% override", "requirements": "50 tenants OR 5 sub-resellers" }
+    ]
+  },
+  "costEstimate": {
+    "monthly": {
+      "mvp": 65,
+      "growth": 120,
+      "scale": 210
+    },
+    "currency": "USD",
+    "freeWins": [
+      "D1: 5M reads/day",
+      "R2: 10GB storage",
+      "Workers: 100K req/day",
+      "Queues: 1M messages/mo",
+      "Workers AI: 10K neurons/day"
+    ],
+    "paidRequired": [
+      "Durable Objects (paid plan)",
+      "Workflows (paid plan)"
+    ]
+  },
+  "timeline": {
+    "mvp": "14 days",
+    "criticalPath": [
+      "T1: Project Setup (1d)",
+      "T2: D1 Schema (1d)",
+      "T3: Tenant DO (2d)",
+      "T4: Provisioning Workflow (2d)",
+      "T9: Dashboard UI (3d)",
+      "T11: Localization (2d)",
+      "T14: Launch (1d)"
+    ]
+  },
+  "scaffoldCommand": "pnpm create cloudflare@latest global-claw --template super-agent",
+  "wranglerConfig": {
+    "name": "global-claw",
+    "compatibility_date": "2025-09-25",
+    "compatibility_flags": ["nodejs_compat"],
+    "placement": { "mode": "smart" },
+    "durable_objects": {
+      "bindings": [
+        { "name": "TENANT_AGENT", "class_name": "TenantAgent" }
+      ]
+    },
+    "d1_databases": [
+      { "binding": "DB", "database_name": "global-claw-primary" }
+    ],
+    "r2_buckets": [
+      { "binding": "ASSETS", "bucket_name": "global-claw-assets" }
+    ],
+    "kv_namespaces": [
+      { "binding": "RATE_LIMIT_KV", "id": "TBD" }
+    ],
+    "queues": {
+      "producers": [
+        { "binding": "AUDIT_QUEUE", "queue": "global-claw-audit" },
+        { "binding": "NOTIFICATION_QUEUE", "queue": "global-claw-notifications" }
+      ]
+    },
+    "ai": { "binding": "AI" }
+  },
+  "qualityMetrics": {
+    "phasesCompleted": 18,
+    "averageScore": 0.8989,
+    "minScore": 0.86,
+    "maxScore": 0.93,
+    "allAboveThreshold": true,
+    "runId": "global-claw-mission-final",
+    "governance": "9.5",
+    "phaseScores": {
+      "opportunity": 0.92,
+      "customer-intel": 0.89,
+      "market-research": 0.91,
+      "competitive-intel": 0.88,
+      "kill-test": 0.90,
+      "revenue-expansion": 0.91,
+      "strategy": 0.89,
+      "business-model": 0.90,
+      "product-design": 0.92,
+      "gtm-marketing": 0.90,
+      "content-engine": 0.88,
+      "tech-arch": 0.93,
+      "analytics": 0.87,
+      "launch-execution": 0.89,
+      "synthesis": 0.91,
+      "task-reconciliation": 0.90,
+      "diagram-generation": 0.86,
+      "validation": 0.92
+    }
+  },
+  "existingImplementation": {
+    "status": "PLANNING_PACKAGE_READY",
+    "repository": "C:\\dev\\Global Claw\\global-claw",
+    "stagingResources": {
+      "worker": "global-claw-staging",
+      "d1Database": "global-claw-primary",
+      "d1Id": "51f1c24f-fc8b-411a-9d46-a3a8fee53222",
+      "r2Bucket": "global-claw-assets-staging",
+      "kvNamespace": "8b23325891774864961c245d1f8fdb36",
+      "queues": ["global-claw-audit-staging", "global-claw-notifications-staging"]
+    },
+    "completedComponents": [
+      "Planning and execution documents",
+      "Multi-environment wrangler.jsonc",
+      "D1 schema migrations 0001-0004"
+    ],
+    "governance": {
+      "platformRoot": "C:\\Users\\ernij\\.cursor\\worktrees\\cloudflare-foundation-dev\\itk\\packages\\shared\\src\\lib\\llm",
+      "localCopy": "C:\\dev\\Global Claw\\global-claw\\src\\lib\\llm",
+      "files": ["executor.ts", "prompt-loader.ts"]
+    }
+  },
+  "nextSteps": [
+    "Deploy to production environment",
+    "Configure production Stripe keys",
+    "Implement Telegram bot webhook handler",
+    "Build LLM router with DeepSeek integration",
+    "Create dashboard frontend (SvelteKit)",
+    "Launch partner portal in 5 languages",
+    "Seed programmatic SEO pages"
+  ]
+}

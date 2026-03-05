@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+dist/
+coverage/
+
+# Template study (temporary)
+.tmp/
+
+# SvelteKit frontend artifacts
+dashboard/.svelte-kit/
+dashboard/build/
+dashboard/node_modules/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

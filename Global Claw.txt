@@ -1,0 +1,716 @@
+Below is a **MASTER BIBLE (Cloudflare-only)** for **global-claw.com**: Telegram-first, 1-click integrations, cheap-LLM router, zero-touch provisioning, multi-tenant fail-closed isolation.
+
+Where I reference platform capabilities/pricing, I label **OBSERVED** with citations. Everything else is **INFERRED** implementation design.
+
+---
+
+# GLOBAL-CLAW MASTER BIBLE
+
+**Version:** v0.1 (Feb 2026)
+**Mission:** Sell instant, preinstalled AI automation tenants globally. User pays → tenant is live → Telegram bot + dashboard works with zero setup.
+
+## Non-Negotiables
+
+* **100% Cloudflare** (compute, queues, workflows, storage, auth edge, routing)
+* **Telegram-only to start** (no WhatsApp/SMS/email v1)
+* **1-click “plugins”** (OAuth connectors + prebuilt packs)
+* **Cheap-LLM first** with enforced budgets + failover
+* **No human-in-loop after payment**
+* **Isolation fail-closed**: compromised tenant can’t impact others
+
+---
+
+## A) Product Definition
+
+### What the customer buys
+
+A **tenant** with:
+
+* A Telegram bot pre-wired to default “packs”
+* A web dashboard
+* A plugin marketplace with 1-click connect
+* Usage + billing + limits
+* LLM routing policy (cheap-first)
+
+### What “preinstalled” means
+
+* Tenant provisioned with:
+
+  * Default Telegram workflow pack enabled
+  * Demo data + templates
+  * Safety limits pre-set
+  * Subdomain created
+  * API key minted
+  * Router config attached
+
+---
+
+## B) Cloudflare-Only Stack (Default)
+
+### Compute / Orchestration
+
+* **Workers**: API control plane, webhooks, router
+* **Durable Objects**: per-tenant agent state + isolation
+* **Workflows**: provisioning state machine + retries (**OBSERVED** Workflows GA) ([Cloudflare][1])
+* **Queues**: async jobs (message handling, plugin sync, audits)
+
+### Data
+
+* **D1**: tenant metadata, config, usage counters
+* **R2**: templates, exports, logs, assets
+
+### AI plumbing
+
+* **Cloudflare Agents SDK** for agent/message patterns + tool handling (**OBSERVED** changelog) ([Cloudflare Docs][2])
+* **AI Gateway** (optional) for central logging/ratelimiting of LLM calls (keep provider-agnostic)
+
+---
+
+## C) High-Level Architecture (Multi-Tenant)
+
+```mermaid
+graph TD
+U[User] --> M[Marketing: Pages]
+U --> APP[Dashboard: Pages]
+M --> API[Workers: Control Plane API]
+
+API --> STRIPE[Stripe Checkout + Webhooks]
+STRIPE --> API
+
+API --> WF[Workflows: Provision Tenant]
+WF --> D1[(D1: tenants/users/subscriptions)]
+WF --> R2[(R2: templates/assets)]
+WF --> DO[Durable Object: TenantAgent]
+DO --> Q[Queues: async jobs]
+
+TG[Telegram] --> TGWH[Workers: Telegram Webhook]
+TGWH --> DO
+DO --> ROUTER[Workers: LLM Router]
+ROUTER --> LLM1[DeepSeek]
+ROUTER --> LLM2[Kimi/Moonshot]
+ROUTER --> LLM3[Minimax]
+ROUTER --> LLM4[Premium fallback if enabled]
+```
+
+---
+
+# 1) Tenant Isolation Model (Recommended)
+
+## Mode C (Hybrid): Shared Control Plane + Per-Tenant Durable Object Agent
+
+**Why:** maximum “agentic” behavior with Cloudflare primitives + fast provisioning + strong isolation boundaries.
+
+### Isolation Guarantees (INFERRED)
+
+* Each tenant has a dedicated Durable Object instance:
+
+  * Separate state, rate limits, budgets, connector tokens
+* All cross-tenant calls must go through Control Plane:
+
+  * Verified tenant_id → DO namespace routing
+* Fail-closed:
+
+  * If tenant mapping is missing/invalid → 403/404
+  * If budget exceeded → hard stop
+  * If abuse signals high → auto-suspend tenant
+
+### Provisioning time target
+
+* **< 10 seconds** from webhook “paid” → tenant usable
+  (Workflows + DO constructor + D1 inserts)
+
+---
+
+# 2) Telegram-Only v1 (Zero Cost Messaging)
+
+## Telegram Bot topology
+
+* **One bot per tenant** (recommended for white-label feel)
+
+  * PRO: easy branding, separation, easier abuse containment
+  * CON: bot creation requires token → must automate creation or use a shared bot initially
+
+### Practical v1 choice (INFERRED)
+
+* **Start with “Shared Bot + Tenant Routing”** for zero manual steps:
+
+  * One global bot token
+  * Each user links to tenant via `/start <tenant_code>`
+  * Later: upgrade plans can “bring your own bot token” (BYOBOT)
+
+### Telegram webhook handling
+
+* Telegram → `POST https://api.global-claw.com/tg/webhook`
+* Worker validates Telegram secret header (if configured)
+* Worker extracts:
+
+  * chat_id, user_id, message, tenant_code
+* Worker routes to tenant DO:
+
+  * `env.TENANTS.get(tenant_id).fetch(...)`
+
+---
+
+# 3) One-Click Plugins (Cloudflare-Only Pattern)
+
+“Plugin” = **Connector + Pack + UI Toggle**, activated with one click.
+
+## Plugin framework (INFERRED)
+
+Each plugin has:
+
+* `manifest.json` (metadata)
+* `scopes` (permissions)
+* `oauth` (optional)
+* `jobs` (background sync)
+* `packs` (workflow templates)
+* `ui` (dashboard toggles)
+
+### Plugin types
+
+1. **No-OAuth plugins** (1 click enable)
+
+   * Webhook inbound
+   * Google Sheets via “copy API key” (later)
+2. **OAuth plugins** (true 1-click)
+
+   * Google (Gmail/Calendar/Drive)
+   * Microsoft (Outlook/Graph)
+   * Slack, HubSpot, etc.
+
+## OAuth on Cloudflare (INFERRED)
+
+* `/oauth/:provider/start` Worker → redirect to provider
+* `/oauth/:provider/callback` Worker → exchange code → store refresh token (encrypted) in D1
+* Tenant DO marks plugin active
+
+**Token storage rule:** only store refresh tokens encrypted; short-lived access tokens cached in DO memory.
+
+---
+
+# 4) Cheap LLM Router (DeepSeek-First)
+
+## Provider shortlist
+
+* **DeepSeek API** (primary cheap) — has cache hit/miss pricing (**OBSERVED**) ([DeepSeek API Docs][3])
+* **Kimi / Moonshot** (secondary) — **UNKNOWN** pricing in this doc; verify current API pricing page before enabling
+* **MiniMax** (secondary) — **UNKNOWN** pricing in this doc; verify current API pricing page before enabling
+* Premium fallback optional (OpenAI/Anthropic) — disabled by default
+
+## DeepSeek pricing (OBSERVED)
+
+DeepSeek docs list per-1M token prices and separate cache hit/miss input + output. ([DeepSeek API Docs][3])
+
+## Router policy (INFERRED)
+
+* Task classes:
+
+  * `chat_low_risk` → DeepSeek chat
+  * `long_context` → Kimi/MiniMax (if needed)
+  * `high_accuracy` → premium (only if tenant allows)
+* Guardrails:
+
+  * Per-tenant daily token budget
+  * Per-tenant per-minute rate limit
+  * Circuit breaker on provider errors
+* Caching:
+
+  * Semantic cache for FAQ-like messages (R2 or KV-like; prefer R2+D1 index)
+  * DeepSeek cache features used where supported
+
+### Router pseudocode
+
+```ts
+function route(req, tenantPolicy, task) {
+  enforceBudgets(req.tokens, tenantPolicy);
+
+  const candidates = [
+    {name:"deepseek", weight:70},
+    {name:"kimi", weight:20},
+    {name:"minimax", weight:10},
+  ];
+
+  const ordered = prioritizeBy(task, tenantPolicy, candidates);
+
+  for (p of ordered) {
+    const r = callProvider(p, req);
+    if (r.ok) return r;
+  }
+  if (tenantPolicy.premiumFallback) return callPremium(req);
+  throw new Error("All providers failed");
+}
+```
+
+---
+
+# 5) Billing + Provisioning (Zero-Touch)
+
+## Stripe flow (INFERRED)
+
+* Hosted Checkout
+* Webhook → Workflows provisioning
+* Idempotency keys everywhere:
+
+  * `stripe_event_id` + `customer_id`
+
+## Provisioning state machine
+
+```mermaid
+stateDiagram-v2
+  [*] --> PaidWebhookReceived
+  PaidWebhookReceived --> ValidateEvent
+  ValidateEvent --> CreateUser
+  CreateUser --> CreateTenant
+  CreateTenant --> AllocateSubdomain
+  AllocateSubdomain --> SeedTemplates
+  SeedTemplates --> CreateTenantDO
+  CreateTenantDO --> ActivateDefaultPacks
+  ActivateDefaultPacks --> IssueApiKeys
+  IssueApiKeys --> MarkDone
+  MarkDone --> NotifyUser
+  NotifyUser --> [*]
+
+  ValidateEvent --> Failed
+  CreateTenant --> Failed
+  SeedTemplates --> Failed
+  Failed --> RetryWithBackoff
+  RetryWithBackoff --> ValidateEvent
+```
+
+### Outputs
+
+* `tenant_id`
+* `tenant_subdomain`
+* `tenant_api_key`
+* `telegram_start_link`
+
+---
+
+# 6) Dashboard (Fast to Build, Minimal Surface Area)
+
+## UI principle
+
+* 3 tabs only:
+
+  1. **Overview** (status, usage, limits)
+  2. **Plugins** (1-click enable + OAuth connect)
+  3. **Packs** (toggle workflows on/off)
+
+## Tech
+
+* Cloudflare Pages (Next.js/React)
+* Auth: magic link/email optional later; v1 can be token session after Stripe receipt (INFERRED)
+
+---
+
+# 7) Abuse Controls (Telegram-Specific)
+
+Telegram has $0 messaging cost → abuse shifts to **LLM + workflow loops**.
+
+## Mandatory controls (INFERRED)
+
+* Per-tenant:
+
+  * max messages/day
+  * max tokens/day
+  * max tool calls/day
+  * max concurrent workflows
+* Bot-farm indicators:
+
+  * many new chats/hour
+  * repeated prompts
+  * high failure rates
+* Enforcement:
+
+  * auto-throttle → auto-suspend → require payment method revalidation
+
+---
+
+# 8) Repo / Service Layout (Monorepo)
+
+```
+global-claw/
+  apps/
+    web/                 # Pages: marketing + app shell
+  workers/
+    api/                 # Control plane API
+    tg-webhook/          # Telegram ingest
+    llm-router/          # provider-agnostic router
+    oauth/               # 1-click plugins OAuth handlers
+  durable/
+    tenant-agent/        # per-tenant DO
+  packages/
+    plugins/             # plugin manifests + pack templates
+    packs/               # preset workflows
+    shared/              # types, auth utils, crypto, logging
+  db/
+    migrations/          # D1 SQL
+  infra/
+    wrangler/            # wrangler configs
+    ci/                  # GitHub Actions
+```
+
+---
+
+# 9) D1 Schema (Minimal v1)
+
+```sql
+-- tenants
+CREATE TABLE tenants (
+  id TEXT PRIMARY KEY,
+  created_at TEXT,
+  plan TEXT,
+  status TEXT,
+  subdomain TEXT,
+  token_budget_daily INTEGER,
+  msg_budget_daily INTEGER
+);
+
+-- users
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  created_at TEXT,
+  email TEXT,
+  stripe_customer_id TEXT
+);
+
+-- tenant_users
+CREATE TABLE tenant_users (
+  tenant_id TEXT,
+  user_id TEXT,
+  role TEXT,
+  PRIMARY KEY (tenant_id, user_id)
+);
+
+-- subscriptions
+CREATE TABLE subscriptions (
+  tenant_id TEXT PRIMARY KEY,
+  stripe_subscription_id TEXT,
+  status TEXT,
+  current_period_end TEXT
+);
+
+-- plugin_tokens (encrypted refresh tokens)
+CREATE TABLE plugin_tokens (
+  tenant_id TEXT,
+  provider TEXT,
+  encrypted_refresh_token TEXT,
+  metadata_json TEXT,
+  created_at TEXT,
+  PRIMARY KEY (tenant_id, provider)
+);
+
+-- usage_daily
+CREATE TABLE usage_daily (
+  tenant_id TEXT,
+  day TEXT,
+  tokens INTEGER,
+  messages INTEGER,
+  tool_calls INTEGER,
+  PRIMARY KEY (tenant_id, day)
+);
+```
+
+---
+
+# 10) “Latest AI Tools” (Cloudflare-native + practical)
+
+**Cloudflare Agents SDK** is explicitly aimed at production agent interfaces and tool handling (**OBSERVED**) ([Cloudflare Docs][2])
+**Durable Objects + Workflows** are positioned by Cloudflare as a foundation for agents and multi-step processes (**OBSERVED**) ([Cloudflare][1])
+
+**INFERRED recommendations (tooling):**
+
+* Cloudflare Agents SDK (agent/message patterns)
+* Workflows for provisioning + retries
+* Queues for async executions
+* AI Gateway for centralized LLM governance (optional)
+* Sentry for exception aggregation
+* OpenTelemetry export if/when Cloudflare supports your pipeline cleanly
+
+---
+
+# 11) MVP Plan (14 Days, Telegram-Only)
+
+**Day 1–2:** Domain + Pages skeleton + Worker API scaffold
+**Day 3–4:** Stripe checkout + webhook → Workflow provisioning
+**Day 5–6:** Tenant DO + Telegram webhook routing
+**Day 7–8:** LLM router + DeepSeek integration + budgets
+**Day 9–10:** Packs v1 (Lead capture + FAQ + simple CRM logging)
+**Day 11–12:** Plugin framework scaffolding (manifests + toggles)
+**Day 13:** Abuse limits + throttling + audit logging
+**Day 14:** Launch + programmatic SEO templates (top 5 locales)
+
+---
+
+# 12) Verification Plan (What must be confirmed)
+
+**UNKNOWN → verify before production**
+
+* Kimi 2.5 API pricing + rate limits + terms (check official docs)
+* MiniMax API pricing + rate limits + terms (check official docs)
+* Telegram per-tenant bot creation automation feasibility without human steps (BotFather constraints)
+* Cloudflare account limits for DO/Workflows at your plan tier (confirm current quotas)
+
+**OBSERVED (already sourced)**
+
+* DeepSeek token pricing published in DeepSeek API docs ([DeepSeek API Docs][3])
+* Cloudflare Workflows GA + DO position for agents per Cloudflare press release ([Cloudflare][1])
+* Agents SDK release notes (v0.1.0+, v0.3.0) in Cloudflare changelog ([Cloudflare Docs][2])
+
+---
+
+## Copy-Paste “North Star” Statement
+
+**Global-Claw is a Cloudflare-native, Telegram-first agent automation SaaS: pay → provision → bot works instantly. Plugins are 1-click connectors. LLM is cheap-first with hard budget caps. Every tenant is isolated via its own Durable Object agent.**
+
+---
+
+If you want, I’ll convert this Bible into **actual implementation artifacts** next:
+
+* `wrangler.toml` (Workers + DO + Queues bindings)
+* Workflow definition (provisioning)
+* Telegram webhook Worker
+* Tenant DO skeleton
+* LLM router Worker with DeepSeek wired (using the exact endpoints/pricing assumptions) ([DeepSeek API Docs][3])
+
+[1]: https://www.cloudflare.com/press/press-releases/2025/cloudflare-accelerates-ai-agent-development-remote-mcp/?utm_source=chatgpt.com "Cloudflare Accelerates AI Agent Development With The Industry's First Remote MCP Server | Cloudflare"
+[2]: https://developers.cloudflare.com/changelog/2025-09-03-agents-sdk-beta-v5/?utm_source=chatgpt.com "Agents SDK v0.1.0 and workers-ai-provider v2.0.0 with AI SDK v5 support · Changelog"
+[3]: https://api-docs.deepseek.com/quick_start/pricing/?utm_source=chatgpt.com "Models & Pricing | DeepSeek API Docs"
+## GLOBAL-CLAW Business Plan (Non-US, Reseller-Led, Multilingual)
+
+### 0) Operating thesis
+
+* **Telegram-first** AI automation SaaS has structurally better unit economics outside the US than WhatsApp-first (no per-conversation messaging fees, faster onboarding, fewer compliance gates).
+* The fastest global distribution is **resellers** (agencies, MSPs, local “digital shops”) selling packaged outcomes to SMBs in their language.
+* Product must be **localized by default**: website, onboarding, pricing, templates, invoices, and in-bot UX.
+
+---
+
+## 1) Target markets (explicitly non-US)
+
+### Primary regions (Telegram adoption + SMB density + payment rails)
+
+* **DACH** (Germany/Austria/Switzerland): strong Telegram usage + high SMB spend
+* **Southern Europe** (Spain/Italy/Portugal): high SMB density, strong messaging culture
+* **Eastern Europe** (Poland/Romania/Czechia/Baltics): Telegram strong, reseller ecosystems active
+* **MENA** (UAE, Saudi, Egypt, Morocco): Telegram adoption high, business messaging normal
+* **LATAM (selected)** (Mexico, Brazil, Colombia, Chile): Telegram meaningful; WhatsApp dominates but Telegram still viable for many verticals
+* **South Asia** (India): huge SMB base, strong Telegram usage
+
+**Positioning rule:** “Not a chatbot.” It’s **instant automation** (lead capture, appointment routing, FAQ triage, internal ops).
+
+---
+
+## 2) Customer + reseller ICP
+
+### End customers (B2B only, by design)
+
+* 1–50 employee SMBs that already live in messaging:
+
+  * clinics, salons, gyms, tutors, real estate teams, restaurants, auto service, home services, ecommerce operators
+
+### Resellers (must-have channel)
+
+* Local agencies and consultants who already sell:
+
+  * websites, social ads, SEO, CRMs, “digital transformation”
+* MSP-like operators (IT services)
+* Industry-specific operators (e.g., salon booking consultants)
+
+**Reseller value prop:** sell outcomes without building software; recurring revenue; local language advantage.
+
+---
+
+## 3) Product offer (what you sell)
+
+### Core SKU: “Instant Telegram Automation Suite”
+
+* Tenant provisioning in seconds
+* Telegram bot + dashboard live immediately
+* 5 preset packs (start with 2–3 enabled by vertical)
+* 1-click “plugins” (OAuth connectors) as upsells
+
+### Preset packs (v1: Telegram-only)
+
+* Lead capture + qualification + routing
+* Appointment request intake (calendar later via plugin)
+* FAQ + escalation (to human contact)
+* Review capture / feedback collector
+* Internal reminders / simple ops assistant
+
+---
+
+## 4) Pricing (reseller-first, non-US localized)
+
+### End-customer pricing (example, adapt per country PPP)
+
+* **Starter**: €29/mo — 1 bot, 1 pack, basic limits
+* **Pro**: €79/mo — all packs, higher limits, basic integrations
+* **Business**: €149/mo — multi-operator, analytics, advanced packs, higher limits
+* **Usage add-on**: LLM overages / premium model toggle (rare if you keep cheap-first)
+
+### Reseller pricing + margin (mandatory)
+
+Two models; offer both:
+
+**Model A: Revenue share (simplest)**
+
+* Reseller gets **30% recurring** for 24 months
+* Payout monthly
+* Reseller link attribution + last-touch
+
+**Model B: Wholesale (best for serious agencies)**
+
+* Wholesale: **40–50% margin**
+* Agency sets retail price (within floors)
+* Optional onboarding fee: **€300–€1,500** (kept by reseller)
+
+**Rule:** No “enterprise negotiation” early. Keep it productized.
+
+---
+
+## 5) Website strategy (multilingual, non-US)
+
+### Domain structure (global-claw.com)
+
+* `global-claw.com/{lang}/...`
+
+  * `/de/`, `/es/`, `/pt-br/`, `/fr/`, `/it/`, `/pl/`, `/tr/`, `/ar/`
+* Currency + pricing localized by geo (IP + user selection)
+
+### Content strategy: programmatic + vertical landing pages
+
+For each language:
+
+* `/de/telegram-bot-friseur`
+* `/es/automatizacion-telegram-inmobiliaria`
+* `/pt-br/bot-telegram-clinica`
+
+Each page includes:
+
+* Localized benefits
+* 2–3 “pack” descriptions
+* ROI calculator (hours saved/week)
+* 60-second setup promise
+* reseller CTA (“Find a Partner”)
+
+### Translation quality (non-negotiable)
+
+* Human-verified for top 5 languages first
+* Back-translation checks
+* Lock legal pages per language
+
+---
+
+## 6) Go-to-market (100% automated + reseller-led)
+
+### Stage 1: Reseller acquisition (the engine)
+
+Automate partner recruitment:
+
+* Landing page: “Become a Global-Claw Partner”
+* Self-serve signup → partner dashboard → unique link
+* Automated email drip for onboarding
+* In-product: partner can spawn tenants in 1 click
+
+Acquisition channels:
+
+* Search: “white label chatbot”, “telegram automation”, “agency automation tool” in target languages
+* LinkedIn outreach (localized)
+* Local agency directories
+* YouTube/TikTok shorts in each language (templates, use cases)
+
+### Stage 2: Reseller enablement
+
+Provide:
+
+* 10 vertical pitch pages per language
+* proposal generator (PDF)
+* demo Telegram bot flows (shareable)
+* case study templates (localized)
+
+### Stage 3: Customer acquisition loops
+
+* In-bot “Powered by Global-Claw” badge (toggleable for reseller plans)
+* Referral code for end customers
+* Template marketplace (packs = shareable links)
+
+---
+
+## 7) Operations (minimal support, self-serve)
+
+* In-app guided “Enable Pack” toggles
+* Automated diagnostics: “Bot health” + “Limits”
+* Hard budget caps prevent runaway costs
+* Abuse detection → auto-throttle → auto-suspend
+
+Support model:
+
+* No tickets by default
+* Knowledge base per language
+* Resellers provide first-line support (you support resellers, not SMBs)
+
+---
+
+## 8) Compliance + taxes (practical for non-US)
+
+* **B2B-only posture**: collect business name + VAT ID where applicable
+* For EU complexity reduction: consider **Merchant of Record** later (Paddle/Lemon Squeezy) if you go heavy B2C
+* Privacy: GDPR-ready baseline (data export/delete)
+
+---
+
+## 9) Milestones + KPIs (90 days)
+
+### Month 1
+
+* 5 languages live (DE, ES, PT-BR, FR, IT)
+* Partner portal + tracking
+* 20 reseller signups
+* 50 trials started
+
+### Month 2
+
+* 100 resellers signed (long tail)
+* 100 paying tenants total
+* Activation rate > 40% (pack enabled + first automation)
+* Churn < 5% monthly
+
+### Month 3
+
+* 300 paying tenants
+* 30 resellers producing ≥3 sales/month
+* CAC approaching near-zero via programmatic SEO + reseller channel
+
+---
+
+## 10) Financial model (simple targets)
+
+* Target blended ARPU (non-US): **€49–€89**
+* With 30% reseller payout:
+
+  * Gross margin remains strong if LLM is cheap-first and Telegram-only
+* Break-even target:
+
+  * ~200–400 tenants depending on fixed costs + reseller ramp
+
+---
+
+## 11) Risks (and mitigations)
+
+* **Low Telegram adoption in some countries** → prioritize Telegram-heavy markets first; add WhatsApp later as premium
+* **Resellers selling garbage / abuse** → partner scoring, minimum standards, automated throttles, kill switch
+* **Localization quality** → lock top markets with human QA; measure conversion by locale
+* **Payment failures by region** → add local methods over time; optional MoR
+
+---
+
+## 12) What you build next (business-critical)
+
+1. Multilingual marketing site + programmatic SEO templates
+2. Partner (reseller) portal: links, payouts, tenant provisioning
+3. Vertical pack library (localized copy + flows)
+4. Pricing localization rules + reseller margin enforcement
+5. Analytics: activation, retention, reseller productivity
+
+If you want, I’ll turn this into a **one-page investor-style plan + a reseller program spec** (tiers, payouts, partner dashboard screens, terms, and anti-abuse rules) you can implement directly.
