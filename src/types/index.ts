@@ -465,12 +465,24 @@ export interface PartnerCreateInput {
 // ============================================================================
 
 /**
+ * Pagination
+ * Standard pagination info for list endpoints (per CLAUDE.md spec).
+ */
+export interface Pagination {
+	page: number;
+	limit: number;
+	total: number;
+	has_more: boolean;
+}
+
+/**
  * ApiResponse
  * Standard success response envelope.
  */
 export interface ApiResponse<T> {
 	success: true;
 	data: T;
+	meta?: Pagination;
 }
 
 /**

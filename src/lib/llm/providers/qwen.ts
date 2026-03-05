@@ -1,47 +1,71 @@
 /**
  * Alibaba Qwen Provider Adapter
- * Uses OpenAI-compatible API with Qwen-specific adjustments
+ * Uses OpenAI-compatible API format (compatible-mode/v1 endpoint)
+ *
+ * Note: This adapter uses Qwen's OpenAI-compatible API.
+ * The base_url should be: https://dashscope.aliyuncs.com/compatible-mode/v1
  */
 
 import type { LLMMessage, LLMStreamChunk } from "../../../types";
 import { BaseProvider, type ProviderCallOptions, type ProviderResponse, registerProvider } from "./base";
 
 /**
- * Qwen API uses OpenAI-compatible format with some differences
+ * OpenAI-compatible message format (used by Qwen compatible-mode)
  */
 interface QwenMessage {
 	role: "system" | "user" | "assistant";
 	content: string;
 }
 
+/**
+ * OpenAI-compatible response format
+ */
 interface QwenResponse {
-	output: {
-		text: string;
-		finish_reason: "stop" | "length" | "null";
-	};
+	id: string;
+	object: "chat.completion";
+	created: number;
+	model: string;
+	choices: Array<{
+		index: number;
+		message: {
+			role: "assistant";
+			content: string;
+		};
+		finish_reason: "stop" | "length" | "tool_calls" | null;
+	}>;
 	usage: {
-		input_tokens: number;
-		output_tokens: number;
+		prompt_tokens: number;
+		completion_tokens: number;
 		total_tokens: number;
 	};
-	request_id: string;
 }
 
+/**
+ * OpenAI-compatible streaming chunk
+ */
 interface QwenStreamChunk {
-	output: {
-		text: string;
-		finish_reason: "stop" | "length" | "null" | null;
-	};
+	id: string;
+	object: "chat.completion.chunk";
+	created: number;
+	model: string;
+	choices: Array<{
+		index: number;
+		delta: {
+			role?: "assistant";
+			content?: string;
+		};
+		finish_reason: "stop" | "length" | null;
+	}>;
 	usage?: {
-		input_tokens: number;
-		output_tokens: number;
+		prompt_tokens: number;
+		completion_tokens: number;
 		total_tokens: number;
 	};
 }
 
 /**
  * Qwen Provider
- * Alibaba's Qwen models via DashScope API
+ * Alibaba's Qwen models via OpenAI-compatible API
  */
 export class QwenProvider extends BaseProvider {
 	async complete(messages: LLMMessage[], model: string, options?: ProviderCallOptions): Promise<ProviderResponse> {
@@ -50,25 +74,29 @@ export class QwenProvider extends BaseProvider {
 		try {
 			const formattedMessages = this.formatMessages(messages);
 
-			const body = {
+			const body: Record<string, unknown> = {
 				model,
-				input: {
-					messages: formattedMessages,
-				},
-				parameters: {
-					max_tokens: options?.max_tokens ?? 4096,
-					temperature: options?.temperature ?? 0.7,
-					top_p: options?.top_p ?? 0.9,
-					result_format: "message",
-				},
+				messages: formattedMessages,
+				max_tokens: options?.max_tokens ?? 4096,
 			};
 
-			const response = await fetch(`${this.config.base_url}/services/aigc/text-generation/generation`, {
+			if (options?.temperature !== undefined) {
+				body.temperature = options.temperature;
+			}
+
+			if (options?.top_p !== undefined) {
+				body.top_p = options.top_p;
+			}
+
+			if (options?.stop) {
+				body.stop = options.stop;
+			}
+
+			const response = await fetch(this.getEndpointUrl("/chat/completions"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.apiKey}`,
-					"X-DashScope-SSE": "disable",
 				},
 				body: JSON.stringify(body),
 				signal: AbortSignal.timeout(this.getTimeout(options)),
@@ -82,15 +110,20 @@ export class QwenProvider extends BaseProvider {
 			const data = (await response.json()) as QwenResponse;
 			const latency = Date.now() - startTime;
 
+			const choice = data.choices[0];
+			if (!choice) {
+				throw new Error("No choices in response");
+			}
+
 			return {
-				content: data.output.text,
-				finish_reason: this.mapFinishReason(data.output.finish_reason),
+				content: choice.message.content ?? "",
+				finish_reason: this.mapFinishReason(choice.finish_reason),
 				metrics: {
 					latency_ms: latency,
-					input_tokens: data.usage.input_tokens,
-					output_tokens: data.usage.output_tokens,
+					input_tokens: data.usage.prompt_tokens,
+					output_tokens: data.usage.completion_tokens,
 					total_tokens: data.usage.total_tokens,
-					cost_usd: this.calculateCost(data.usage.input_tokens, data.usage.output_tokens),
+					cost_usd: this.calculateCost(data.usage.prompt_tokens, data.usage.completion_tokens),
 				},
 			};
 		} catch (error) {
@@ -109,26 +142,27 @@ export class QwenProvider extends BaseProvider {
 		try {
 			const formattedMessages = this.formatMessages(messages);
 
-			const body = {
+			const body: Record<string, unknown> = {
 				model,
-				input: {
-					messages: formattedMessages,
-				},
-				parameters: {
-					max_tokens: options?.max_tokens ?? 4096,
-					temperature: options?.temperature ?? 0.7,
-					top_p: options?.top_p ?? 0.9,
-					result_format: "message",
-					incremental_output: true,
-				},
+				messages: formattedMessages,
+				max_tokens: options?.max_tokens ?? 4096,
+				stream: true,
+				stream_options: { include_usage: true },
 			};
 
-			const response = await fetch(`${this.config.base_url}/services/aigc/text-generation/generation`, {
+			if (options?.temperature !== undefined) {
+				body.temperature = options.temperature;
+			}
+
+			if (options?.top_p !== undefined) {
+				body.top_p = options.top_p;
+			}
+
+			const response = await fetch(this.getEndpointUrl("/chat/completions"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.apiKey}`,
-					"X-DashScope-SSE": "enable",
 				},
 				body: JSON.stringify(body),
 				signal: AbortSignal.timeout(this.getTimeout(options)),
@@ -159,23 +193,24 @@ export class QwenProvider extends BaseProvider {
 					buffer = lines.pop() ?? "";
 
 					for (const line of lines) {
-						if (line.startsWith("data:")) {
-							const data = line.slice(5).trim();
-							if (!data || data === "[DONE]") continue;
+						if (line.startsWith("data: ")) {
+							const data = line.slice(6);
+							if (data === "[DONE]") continue;
 
 							try {
 								const chunk = JSON.parse(data) as QwenStreamChunk;
+								const choice = chunk.choices[0];
 
-								if (chunk.output.text) {
+								if (choice?.delta.content) {
 									yield {
 										type: "content",
-										content: chunk.output.text,
+										content: choice.delta.content,
 									};
 								}
 
 								if (chunk.usage) {
-									inputTokens = chunk.usage.input_tokens;
-									outputTokens = chunk.usage.output_tokens;
+									inputTokens = chunk.usage.prompt_tokens;
+									outputTokens = chunk.usage.completion_tokens;
 								}
 							} catch {
 								// Skip malformed JSON
@@ -208,7 +243,7 @@ export class QwenProvider extends BaseProvider {
 	}
 
 	/**
-	 * Format messages for Qwen API
+	 * Format messages for Qwen API (OpenAI-compatible format)
 	 */
 	private formatMessages(messages: LLMMessage[]): QwenMessage[] {
 		return messages
@@ -228,14 +263,16 @@ export class QwenProvider extends BaseProvider {
 	}
 
 	/**
-	 * Map Qwen finish reason to standard format
+	 * Map finish reason to standard format
 	 */
-	private mapFinishReason(reason: string): "stop" | "length" | "tool_use" | "content_filter" | "error" {
+	private mapFinishReason(reason: string | null): "stop" | "length" | "tool_use" | "content_filter" | "error" {
 		switch (reason) {
 			case "stop":
 				return "stop";
 			case "length":
 				return "length";
+			case "tool_calls":
+				return "tool_use";
 			default:
 				return "stop";
 		}

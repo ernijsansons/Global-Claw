@@ -7,8 +7,19 @@ import { Hono } from "hono";
 import type { ApiResponse, HealthCheckResult } from "./types";
 import type { Env } from "./types/env";
 
+// Import API routes
+import { providers } from "./api/providers";
+import { routingRules } from "./api/routing-rules";
+
 // Create Hono app with typed environment
 const app = new Hono<{ Bindings: Env }>();
+
+// ============================================================================
+// Mount API Routes
+// ============================================================================
+
+app.route("/api/providers", providers);
+app.route("/api/routing-rules", routingRules);
 
 // ============================================================================
 // Health Check Endpoint (Public)

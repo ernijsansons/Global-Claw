@@ -120,7 +120,7 @@ export class OpenAIProvider extends BaseProvider {
 				}));
 			}
 
-			const response = await fetch(`${this.config.base_url}/chat/completions`, {
+			const response = await fetch(this.getEndpointUrl("/chat/completions"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -190,7 +190,7 @@ export class OpenAIProvider extends BaseProvider {
 				body.temperature = options.temperature;
 			}
 
-			const response = await fetch(`${this.config.base_url}/chat/completions`, {
+			const response = await fetch(this.getEndpointUrl("/chat/completions"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",

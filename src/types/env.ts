@@ -83,6 +83,9 @@ export interface Env {
 
 	/** AI Gateway slug used by the LLM executor */
 	AI_GATEWAY_SLUG?: string;
+
+	/** Cloudflare account ID for AI Gateway */
+	CF_ACCOUNT_ID?: string;
 }
 
 /**

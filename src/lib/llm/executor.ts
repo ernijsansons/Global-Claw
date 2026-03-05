@@ -7,10 +7,11 @@
  *
  * Features:
  * - Provider-agnostic routing
- * - Automatic fallback on failure
+ * - Automatic fallback on failure (respects allow_fallback flag)
  * - Circuit breaker integration
  * - Token/cost tracking
  * - Audit logging
+ * - AI Gateway integration for observability
  */
 
 import type { LLMMessage, LLMProvider, LLMRequest, LLMResponse, LLMStreamChunk } from "../../types";
@@ -61,6 +62,7 @@ export class LLMExecutor {
 	 */
 	async execute(request: LLMRequest, options?: ExecutorOptions): Promise<LLMResponse> {
 		const maxRetries = options?.maxRetries ?? 3;
+		const allowFallback = request.allow_fallback !== false; // Default to true
 		let lastError: Error | undefined;
 
 		// Get routing decision
@@ -73,10 +75,14 @@ export class LLMExecutor {
 
 		const routing = await this.router.route(routerContext);
 
-		// Build list of providers to try (primary + fallbacks)
-		const providersToTry = [{ provider: routing.provider, model: routing.model }, ...routing.fallbacks];
+		// Build list of providers to try (primary + fallbacks if allowed)
+		const providersToTry = allowFallback
+			? [{ provider: routing.provider, model: routing.model }, ...routing.fallbacks]
+			: [{ provider: routing.provider, model: routing.model }];
 
-		for (let attempt = 0; attempt < Math.min(maxRetries, providersToTry.length); attempt++) {
+		const maxAttempts = allowFallback ? Math.min(maxRetries, providersToTry.length) : 1;
+
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
 			const target = providersToTry[attempt];
 			if (!target) continue;
 
@@ -102,8 +108,9 @@ export class LLMExecutor {
 
 				const result = await adapter.complete(request.messages, target.model, callOptions);
 
-				// Record success
+				// Record success - update both circuit breaker and router health
 				this.circuitBreaker.recordSuccess(providerId);
+				this.router.updateHealth(providerId, true);
 
 				const latencyMs = Date.now() - callStartTime;
 				const costCents = this.calculateCost(
@@ -162,8 +169,13 @@ export class LLMExecutor {
 
 	/**
 	 * Execute an LLM request with streaming
+	 * Supports fallback to alternative providers on failure
 	 */
 	async *executeStream(request: LLMRequest, options?: ExecutorOptions): AsyncGenerator<LLMStreamChunk, void, unknown> {
+		const maxRetries = options?.maxRetries ?? 3;
+		const allowFallback = request.allow_fallback !== false; // Default to true
+		let lastError: Error | undefined;
+
 		// Get routing decision
 		const routerContext: RouterContext = {
 			tenant_id: request.tenant_id,
@@ -173,53 +185,92 @@ export class LLMExecutor {
 		};
 
 		const routing = await this.router.route(routerContext);
-		const providerId = routing.provider.id;
 
-		// Check circuit breaker
-		if (!options?.skipCircuitBreaker && !this.circuitBreaker.canRequest(providerId)) {
-			yield { type: "error", error: "Provider circuit open" };
-			return;
-		}
+		// Build list of providers to try (primary + fallbacks if allowed)
+		const providersToTry = allowFallback
+			? [{ provider: routing.provider, model: routing.model }, ...routing.fallbacks]
+			: [{ provider: routing.provider, model: routing.model }];
 
-		try {
-			const adapter = await this.getAdapter(routing.provider);
+		const maxAttempts = allowFallback ? Math.min(maxRetries, providersToTry.length) : 1;
 
-			const callOptions: ProviderCallOptions = {
-				max_tokens: request.max_tokens,
-				temperature: request.temperature,
-				stop: request.stop_sequences,
-				tools: request.tools,
-				timeout_ms: options?.timeout ?? request.timeout_ms,
-				stream: true,
-			};
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			const target = providersToTry[attempt];
+			if (!target) continue;
 
-			const stream = adapter.stream(request.messages, routing.model, callOptions);
+			const providerId = target.provider.id;
 
-			for await (const chunk of stream) {
-				yield chunk;
-
-				// If this is the done chunk, log usage
-				if (chunk.type === "done" && chunk.metrics) {
-					this.circuitBreaker.recordSuccess(providerId);
-					await this.logUsage(request, {
-						provider_id: providerId,
-						model: routing.model,
-						latency_ms: chunk.metrics.latency_ms,
-						input_tokens: chunk.metrics.input_tokens,
-						output_tokens: chunk.metrics.output_tokens,
-						cost_cents: this.calculateCost(routing.provider, chunk.metrics.input_tokens, chunk.metrics.output_tokens),
-					});
-				} else if (chunk.type === "error") {
-					this.circuitBreaker.recordFailure(providerId);
-				}
+			// Check circuit breaker
+			if (!options?.skipCircuitBreaker && !this.circuitBreaker.canRequest(providerId)) {
+				continue;
 			}
-		} catch (error) {
-			this.circuitBreaker.recordFailure(providerId);
-			yield {
-				type: "error",
-				error: error instanceof Error ? error.message : String(error),
-			};
+
+			try {
+				const adapter = await this.getAdapter(target.provider);
+
+				const callOptions: ProviderCallOptions = {
+					max_tokens: request.max_tokens,
+					temperature: request.temperature,
+					stop: request.stop_sequences,
+					tools: request.tools,
+					timeout_ms: options?.timeout ?? request.timeout_ms,
+					stream: true,
+				};
+
+				const stream = adapter.stream(request.messages, target.model, callOptions);
+				let streamSucceeded = false;
+				let streamError: Error | undefined;
+
+				for await (const chunk of stream) {
+					// If this is the done chunk, log usage and mark success
+					if (chunk.type === "done" && chunk.metrics) {
+						streamSucceeded = true;
+						this.circuitBreaker.recordSuccess(providerId);
+						this.router.updateHealth(providerId, true);
+						await this.logUsage(request, {
+							provider_id: providerId,
+							model: target.model,
+							latency_ms: chunk.metrics.latency_ms,
+							input_tokens: chunk.metrics.input_tokens,
+							output_tokens: chunk.metrics.output_tokens,
+							cost_cents: this.calculateCost(target.provider, chunk.metrics.input_tokens, chunk.metrics.output_tokens),
+						});
+					} else if (chunk.type === "error") {
+						// Record error but don't yield yet - try fallback first
+						streamError = new Error(chunk.error);
+						this.circuitBreaker.recordFailure(providerId);
+						this.router.updateHealth(providerId, false);
+						break;
+					}
+
+					yield chunk;
+				}
+
+				// If stream completed successfully, we're done
+				if (streamSucceeded) {
+					return;
+				}
+
+				// If stream had an error, save it and try next provider
+				if (streamError) {
+					lastError = streamError;
+					continue;
+				}
+
+				// Stream completed without explicit done - assume success
+				return;
+			} catch (error) {
+				lastError = error instanceof Error ? error : new Error(String(error));
+				this.circuitBreaker.recordFailure(providerId);
+				this.router.updateHealth(providerId, false);
+				// Continue to next provider
+			}
 		}
+
+		// All providers failed
+		yield {
+			type: "error",
+			error: lastError?.message ?? "No LLM providers available",
+		};
 	}
 
 	/**
@@ -247,6 +298,14 @@ export class LLMExecutor {
 			rate_limit_tpm: 100000, // Default TPM
 			timeout_ms: 30000, // Default timeout
 			is_enabled: provider.is_enabled === 1,
+			// Add AI Gateway config if available
+			gateway:
+				this.env.CF_ACCOUNT_ID && this.env.AI_GATEWAY_SLUG
+					? {
+							account_id: this.env.CF_ACCOUNT_ID,
+							gateway_slug: this.env.AI_GATEWAY_SLUG,
+						}
+					: undefined,
 		};
 
 		// Decrypt API key

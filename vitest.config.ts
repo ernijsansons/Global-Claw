@@ -5,17 +5,14 @@ export default defineWorkersConfig({
 		poolOptions: {
 			workers: {
 				wrangler: { configPath: "./wrangler.jsonc" },
+				isolatedStorage: false, // Required for Workflows support
+				singleWorker: true, // Avoid queue consumer conflicts
 				miniflare: {
 					d1Databases: ["DB"],
 					kvNamespaces: ["RATE_LIMIT_KV"],
 					r2Buckets: ["ASSETS"],
 					durableObjects: {
 						TENANT_AGENT: "TenantAgent",
-					},
-					// Queue bindings (mocked — messages are captured, not sent)
-					queueProducers: {
-						AUDIT_QUEUE: "global-claw-audit",
-						NOTIFICATION_QUEUE: "global-claw-notifications",
 					},
 					// Workers AI and Vectorize are NOT available in Miniflare.
 					// Tests that touch AI/Vectorize must use mocks from tests/helpers/mocks.ts.

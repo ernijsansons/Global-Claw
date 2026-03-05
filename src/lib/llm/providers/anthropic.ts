@@ -100,7 +100,7 @@ export class AnthropicProvider extends BaseProvider {
 				}));
 			}
 
-			const response = await fetch(`${this.config.base_url}/messages`, {
+			const response = await fetch(this.getEndpointUrl("/messages"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -178,7 +178,7 @@ export class AnthropicProvider extends BaseProvider {
 				body.temperature = options.temperature;
 			}
 
-			const response = await fetch(`${this.config.base_url}/messages`, {
+			const response = await fetch(this.getEndpointUrl("/messages"), {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",

@@ -25,6 +25,11 @@ export interface ProviderConfig {
 	rate_limit_tpm: number;
 	timeout_ms: number;
 	is_enabled: boolean;
+	/** AI Gateway configuration (optional) */
+	gateway?: {
+		account_id: string;
+		gateway_slug: string;
+	};
 }
 
 /**
@@ -153,7 +158,32 @@ export abstract class BaseProvider implements LLMProviderAdapter {
 	constructor(config: ProviderConfig, apiKey: string) {
 		this.config = config;
 		this.apiKey = apiKey;
-		this.models = JSON.parse(config.models_json) as ModelInfo[];
+		// Parse models_json - supports both string[] and ModelInfo[] formats
+		this.models = this.parseModels(config.models_json);
+	}
+
+	/**
+	 * Parse models_json supporting both legacy string[] and full ModelInfo[] formats
+	 */
+	private parseModels(modelsJson: string): ModelInfo[] {
+		const parsed = JSON.parse(modelsJson) as string[] | ModelInfo[];
+		if (parsed.length === 0) return [];
+
+		// Check if it's already ModelInfo format
+		if (typeof parsed[0] === "object" && "id" in parsed[0]) {
+			return parsed as ModelInfo[];
+		}
+
+		// Convert string[] to ModelInfo[] with reasonable defaults
+		return (parsed as string[]).map((modelId) => ({
+			id: modelId,
+			name: modelId,
+			context_window: 128000, // Default context window
+			max_output_tokens: 4096,
+			supports_tools: true,
+			supports_vision: false,
+			supports_streaming: true,
+		}));
 	}
 
 	get slug(): string {
@@ -206,6 +236,42 @@ export abstract class BaseProvider implements LLMProviderAdapter {
 	 */
 	protected getTimeout(options?: ProviderCallOptions): number {
 		return options?.timeout_ms ?? this.config.timeout_ms ?? 30000;
+	}
+
+	/**
+	 * Get the API endpoint URL, routing through AI Gateway if configured
+	 *
+	 * AI Gateway URL format:
+	 * https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_slug}/{provider}/{endpoint}
+	 */
+	protected getEndpointUrl(path: string): string {
+		if (this.config.gateway?.account_id && this.config.gateway?.gateway_slug) {
+			// Route through AI Gateway
+			const gatewayBase = `https://gateway.ai.cloudflare.com/v1/${this.config.gateway.account_id}/${this.config.gateway.gateway_slug}`;
+			// Map api_type to gateway provider name
+			const gatewayProvider = this.getGatewayProviderName();
+			return `${gatewayBase}/${gatewayProvider}${path}`;
+		}
+		// Direct API call
+		return `${this.config.base_url}${path}`;
+	}
+
+	/**
+	 * Get the gateway provider name for this adapter
+	 */
+	protected getGatewayProviderName(): string {
+		switch (this.config.api_type) {
+			case "anthropic":
+				return "anthropic";
+			case "openai":
+				return "openai";
+			case "qwen":
+				return "qwen"; // Note: Qwen may not be supported by AI Gateway yet
+			case "openai_compatible":
+				return "openai"; // Use OpenAI gateway for compatible providers
+			default:
+				return this.config.slug;
+		}
 	}
 
 	abstract complete(messages: LLMMessage[], model: string, options?: ProviderCallOptions): Promise<ProviderResponse>;
