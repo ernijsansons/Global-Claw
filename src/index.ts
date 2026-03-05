@@ -19,6 +19,8 @@ import {
 // Import API routes
 import { providers } from "./api/providers";
 import { routingRules } from "./api/routing-rules";
+import { signup } from "./api/signup";
+import { stripe } from "./api/stripe";
 import { telegramApi } from "./api/telegram";
 import { telegramWebhook } from "./telegram";
 
@@ -50,6 +52,8 @@ app.onError(errorHandler);
 
 app.route("/api/providers", providers);
 app.route("/api/routing-rules", routingRules);
+app.route("/api/signup", signup);
+app.route("/api/stripe", stripe);
 app.route("/api", telegramApi);
 app.route("/tg/webhook", telegramWebhook);
 

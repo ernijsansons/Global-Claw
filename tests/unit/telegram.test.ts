@@ -5,12 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import { escapeMarkdownV2, extractCommand } from "../../src/telegram/bot-api";
-import {
-	detectLanguage,
-	getLanguageFromTelegram,
-	t,
-	type SupportedLanguage,
-} from "../../src/telegram/commands";
+import { detectLanguage, getLanguageFromTelegram, t } from "../../src/telegram/commands";
 
 describe("Telegram Bot API", () => {
 	describe("extractCommand()", () => {

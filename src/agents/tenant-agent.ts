@@ -12,6 +12,8 @@
  * - Proper usage billing for tool-call flows
  */
 
+import { verifyApiKey } from "../lib/auth/api-key";
+import { verifyJWT } from "../lib/auth/jwt";
 import type { Agent, BudgetInfo, LLMMessage, LLMRequest, LLMResponse, LLMStreamChunk, LLMTool, Tenant } from "../types";
 import type { Env } from "../types/env";
 
@@ -326,23 +328,75 @@ export class TenantAgent implements DurableObject {
 	/**
 	 * Validate request has proper authorization headers
 	 */
-	private validateAuth(request: Request): { valid: boolean; user_id?: string; error?: string } {
-		// Check for internal service token or user context
-		const authHeader = request.headers.get("X-DO-Auth");
-		const userId = request.headers.get("X-User-Id");
-
-		// Internal requests from the worker are trusted
-		if (authHeader === this.env.JWT_SECRET) {
-			return { valid: true, user_id: userId ?? undefined };
+	private async validateAuth(request: Request): Promise<{
+		valid: boolean;
+		user_id?: string;
+		auth_type?: "internal" | "jwt" | "api_key";
+		error?: string;
+	}> {
+		// Internal service-to-service auth
+		const internalAuth = request.headers.get("X-DO-Auth");
+		if (internalAuth === this.env.JWT_SECRET) {
+			return {
+				valid: true,
+				user_id: request.headers.get("X-User-Id") ?? undefined,
+				auth_type: "internal",
+			};
 		}
 
-		// For now, require user_id header for external requests
-		// In production, this should validate JWT or API key
-		if (!userId) {
-			return { valid: false, error: "Missing X-User-Id header" };
+		// Bearer JWT auth
+		const authorization = request.headers.get("Authorization");
+		if (authorization?.startsWith("Bearer ")) {
+			const token = authorization.slice("Bearer ".length);
+			try {
+				const payload = await verifyJWT(token, this.env.JWT_SECRET);
+
+				if (payload.type !== "access") {
+					return { valid: false, error: "Invalid token type" };
+				}
+
+				// Bound DO may only accept auth scoped to the same tenant
+				if (this.tenantId && payload.tid !== this.tenantId) {
+					return { valid: false, error: "Token tenant does not match bound tenant" };
+				}
+
+				return {
+					valid: true,
+					user_id: payload.sub,
+					auth_type: "jwt",
+				};
+			} catch (error) {
+				return {
+					valid: false,
+					error: error instanceof Error ? error.message : "Invalid JWT",
+				};
+			}
 		}
 
-		return { valid: true, user_id: userId };
+		// API key auth
+		const apiKey = request.headers.get("X-API-Key");
+		if (apiKey) {
+			try {
+				const context = await verifyApiKey(apiKey, this.env.DB);
+
+				if (this.tenantId && context.tenant_id !== this.tenantId) {
+					return { valid: false, error: "API key tenant does not match bound tenant" };
+				}
+
+				return {
+					valid: true,
+					user_id: context.user_id,
+					auth_type: "api_key",
+				};
+			} catch (error) {
+				return {
+					valid: false,
+					error: error instanceof Error ? error.message : "Invalid API key",
+				};
+			}
+		}
+
+		return { valid: false, error: "Missing authentication credentials" };
 	}
 
 	/**
@@ -414,7 +468,13 @@ export class TenantAgent implements DurableObject {
 				return this.errorResponse("UNBOUND", "TenantAgent not initialized with tenant_id", 400);
 			}
 
-			// Read-only routes (no auth required for internal calls)
+			// All bound routes require authentication
+			const auth = await this.validateAuth(request);
+			if (!auth.valid) {
+				return this.errorResponse("UNAUTHORIZED", auth.error ?? "Unauthorized", 401);
+			}
+
+			// Read-only routes
 			if (path === "/state" && request.method === "GET") {
 				return this.handleGetState();
 			}
@@ -428,28 +488,25 @@ export class TenantAgent implements DurableObject {
 			}
 
 			if (path === "/conversations" && request.method === "GET") {
-				return this.handleListConversations(url.searchParams);
+				return this.handleListConversations(url.searchParams, auth.user_id, auth.auth_type === "internal");
 			}
 
 			if (path.startsWith("/conversations/") && request.method === "GET") {
 				const conversationId = path.split("/")[2];
-				return this.handleGetConversation(conversationId ?? "", request);
+				return this.handleGetConversation(conversationId ?? "", auth.user_id, auth.auth_type === "internal");
 			}
 
 			if (path === "/memory" && request.method === "GET") {
 				return this.handleSearchMemory(url.searchParams);
 			}
 
-			// Mutating routes require auth validation
-			const auth = this.validateAuth(request);
-
 			// Message endpoints
 			if (path === "/message" && request.method === "POST") {
-				return this.handleMessage(request);
+				return this.handleMessage(request, auth);
 			}
 
 			if (path === "/message/stream" && request.method === "POST") {
-				return this.handleMessageStream(request);
+				return this.handleMessageStream(request, auth);
 			}
 
 			// Memory mutation
@@ -622,12 +679,20 @@ export class TenantAgent implements DurableObject {
 	/**
 	 * Handle incoming message (non-streaming)
 	 */
-	private async handleMessage(request: Request): Promise<Response> {
+	private async handleMessage(
+		request: Request,
+		auth: { valid: boolean; user_id?: string; auth_type?: "internal" | "jwt" | "api_key"; error?: string },
+	): Promise<Response> {
 		const body = (await request.json()) as MessageRequest;
 
 		// Validate request
 		if (!body.agent_id || !body.user_id || !body.content) {
 			return this.errorResponse("VALIDATION_ERROR", "agent_id, user_id, and content are required", 400);
+		}
+
+		// JWT-authenticated callers may only act as themselves
+		if (auth.auth_type === "jwt" && auth.user_id && body.user_id !== auth.user_id) {
+			return this.errorResponse("FORBIDDEN", "Cannot send message on behalf of another user", 403);
 		}
 
 		// Check budget
@@ -678,6 +743,7 @@ export class TenantAgent implements DurableObject {
 				language: body.language ?? this.tenant?.default_language,
 				user_id: body.user_id,
 				agent_id: body.agent_id,
+				conversation_id: conversationId,
 				token_budget_remaining: budget.tokens_remaining,
 			},
 			allow_fallback: true,
@@ -699,7 +765,14 @@ export class TenantAgent implements DurableObject {
 		// Process tool calls if any (this may make additional LLM calls)
 		let finalContent = response.content;
 		if (response.tool_calls && response.tool_calls.length > 0) {
-			finalContent = await this.processToolCalls(response, messages, llmRequest, executor, accumulatedUsage);
+			finalContent = await this.processToolCalls(
+				response,
+				messages,
+				llmRequest,
+				executor,
+				accumulatedUsage,
+				conversationId,
+			);
 		}
 
 		// Save messages to conversation
@@ -752,12 +825,20 @@ export class TenantAgent implements DurableObject {
 	/**
 	 * Handle streaming message
 	 */
-	private async handleMessageStream(request: Request): Promise<Response> {
+	private async handleMessageStream(
+		request: Request,
+		auth: { valid: boolean; user_id?: string; auth_type?: "internal" | "jwt" | "api_key"; error?: string },
+	): Promise<Response> {
 		const body = (await request.json()) as MessageRequest;
 
 		// Validate request
 		if (!body.agent_id || !body.user_id || !body.content) {
 			return this.errorResponse("VALIDATION_ERROR", "agent_id, user_id, and content are required", 400);
+		}
+
+		// JWT-authenticated callers may only act as themselves
+		if (auth.auth_type === "jwt" && auth.user_id && body.user_id !== auth.user_id) {
+			return this.errorResponse("FORBIDDEN", "Cannot send message on behalf of another user", 403);
 		}
 
 		// Check budget
@@ -799,6 +880,7 @@ export class TenantAgent implements DurableObject {
 				language: body.language ?? this.tenant?.default_language,
 				user_id: body.user_id,
 				agent_id: body.agent_id,
+				conversation_id: conversationId,
 			},
 		};
 
@@ -885,7 +967,7 @@ export class TenantAgent implements DurableObject {
 	/**
 	 * Get conversation history (with access validation)
 	 */
-	private handleGetConversation(conversationId: string, request: Request): Response {
+	private handleGetConversation(conversationId: string, authUserId?: string, isInternal = false): Response {
 		const conversation = this.sql
 			.exec<Conversation>("SELECT * FROM conversations WHERE id = ?", [conversationId])
 			.toArray()[0];
@@ -894,9 +976,8 @@ export class TenantAgent implements DurableObject {
 			return this.errorResponse("NOT_FOUND", "Conversation not found", 404);
 		}
 
-		// Validate access via header if provided
-		const requestUserId = request.headers.get("X-User-Id");
-		if (requestUserId && conversation.user_id !== requestUserId) {
+		// Non-internal callers may only access their own conversations
+		if (!isInternal && authUserId && conversation.user_id !== authUserId) {
 			return this.errorResponse("FORBIDDEN", "Access denied to this conversation", 403);
 		}
 
@@ -916,12 +997,18 @@ export class TenantAgent implements DurableObject {
 	/**
 	 * List conversations
 	 */
-	private handleListConversations(params: URLSearchParams): Response {
+	private handleListConversations(params: URLSearchParams, authUserId?: string, isInternal = false): Response {
 		const agentId = params.get("agent_id");
-		const userId = params.get("user_id");
+		const requestedUserId = params.get("user_id");
 		const status = params.get("status") ?? "active";
 		const limit = Math.min(Number.parseInt(params.get("limit") ?? "50"), 100);
 		const offset = Number.parseInt(params.get("offset") ?? "0");
+
+		// Non-internal callers are scoped to their own conversations
+		if (!isInternal && requestedUserId && authUserId && requestedUserId !== authUserId) {
+			return this.errorResponse("FORBIDDEN", "Cannot list conversations for another user", 403);
+		}
+		const userId = !isInternal ? (authUserId ?? requestedUserId) : requestedUserId;
 
 		let query = "SELECT * FROM conversations WHERE status = ?";
 		const queryParams: unknown[] = [status];
@@ -1232,6 +1319,7 @@ export class TenantAgent implements DurableObject {
 		originalRequest: LLMRequest,
 		executor: { execute: (req: LLMRequest) => Promise<LLMResponse> },
 		accumulatedUsage: AccumulatedUsage,
+		conversationId: string,
 	): Promise<string> {
 		if (!response.tool_calls || response.tool_calls.length === 0) {
 			return response.content;
@@ -1272,7 +1360,7 @@ export class TenantAgent implements DurableObject {
 				 VALUES (?, ?, 'tool', ?, 0, ?, ?, ?, ?, ?)`,
 				[
 					crypto.randomUUID(),
-					originalRequest.context?.conversation_id ?? "",
+					conversationId,
 					result,
 					now,
 					toolCall.name,
@@ -1300,7 +1388,14 @@ export class TenantAgent implements DurableObject {
 			// Prevent infinite loops
 			const toolCallDepth = messages.filter((m) => m.role === "tool").length;
 			if (toolCallDepth < 5) {
-				return this.processToolCalls(followUpResponse, messages, originalRequest, executor, accumulatedUsage);
+				return this.processToolCalls(
+					followUpResponse,
+					messages,
+					originalRequest,
+					executor,
+					accumulatedUsage,
+					conversationId,
+				);
 			}
 		}
 

@@ -23,6 +23,7 @@ declare module "cloudflare:test" {
 describe("TenantAgent Integration", () => {
 	let tenantAgentStub: DurableObjectStub;
 	const testTenantId = "test-tenant-001";
+	const internalHeaders = (): HeadersInit => ({ "X-DO-Auth": env.JWT_SECRET });
 
 	// Set up database and seed test tenant before tests
 	beforeAll(async () => {
@@ -144,7 +145,11 @@ describe("TenantAgent Integration", () => {
 				}),
 			);
 
-			const response = await tenantAgentStub.fetch(new Request("https://do/state"));
+			const response = await tenantAgentStub.fetch(
+				new Request("https://do/state", {
+					headers: internalHeaders(),
+				}),
+			);
 			const result = (await response.json()) as { success: boolean; data?: unknown };
 
 			expect(response.status).toBe(200);
@@ -197,7 +202,11 @@ describe("TenantAgent Integration", () => {
 				}),
 			);
 
-			const response = await tenantAgentStub.fetch(new Request("https://do/budget"));
+			const response = await tenantAgentStub.fetch(
+				new Request("https://do/budget", {
+					headers: internalHeaders(),
+				}),
+			);
 			const result = (await response.json()) as {
 				success: boolean;
 				data?: {
@@ -224,7 +233,11 @@ describe("TenantAgent Integration", () => {
 				}),
 			);
 
-			const response = await tenantAgentStub.fetch(new Request("https://do/state"));
+			const response = await tenantAgentStub.fetch(
+				new Request("https://do/state", {
+					headers: internalHeaders(),
+				}),
+			);
 			const result = (await response.json()) as {
 				success: boolean;
 				data?: {
@@ -254,7 +267,11 @@ describe("TenantAgent Integration", () => {
 				}),
 			);
 
-			const response = await tenantAgentStub.fetch(new Request("https://do/tools"));
+			const response = await tenantAgentStub.fetch(
+				new Request("https://do/tools", {
+					headers: internalHeaders(),
+				}),
+			);
 			const result = (await response.json()) as {
 				success: boolean;
 				data?: { tools: unknown[] };
@@ -340,7 +357,11 @@ describe("TenantAgent Integration", () => {
 			);
 
 			// Search without query param (list all)
-			const response = await tenantAgentStub.fetch(new Request("https://do/memory"));
+			const response = await tenantAgentStub.fetch(
+				new Request("https://do/memory", {
+					headers: internalHeaders(),
+				}),
+			);
 			const result = (await response.json()) as {
 				success: boolean;
 				data?: { facts: unknown[] };
