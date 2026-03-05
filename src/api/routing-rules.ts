@@ -7,10 +7,15 @@
  */
 
 import { Hono } from "hono";
+import { requireAuth, requireRole } from "../lib/auth/middleware";
 import type { ApiResponse, LLMRoutingRule, Pagination } from "../types";
 import type { Env } from "../types/env";
 
 const routingRules = new Hono<{ Bindings: Env }>();
+
+// All routing rule routes require admin authentication
+routingRules.use("/*", requireAuth());
+routingRules.use("/*", requireRole("owner", "admin"));
 
 // ============================================================================
 // List Routing Rules
@@ -209,10 +214,17 @@ routingRules.post("/", async (c) => {
 	// Fetch the created rule
 	const rule = await c.env.DB.prepare("SELECT * FROM llm_routing_rules WHERE id = ?").bind(id).first<LLMRoutingRule>();
 
+	if (!rule) {
+		return c.json(
+			{ success: false, error: { code: "INTERNAL_ERROR", message: "Failed to retrieve created rule" } },
+			500,
+		);
+	}
+
 	const enrichedRule = {
-		...rule!,
-		condition: JSON.parse(rule!.condition_json),
-		routes: JSON.parse(rule!.routes_json),
+		...rule,
+		condition: JSON.parse(rule.condition_json),
+		routes: JSON.parse(rule.routes_json),
 	};
 
 	const response: ApiResponse<typeof enrichedRule> = {
@@ -344,10 +356,17 @@ routingRules.patch("/:id", async (c) => {
 	// Fetch updated rule
 	const rule = await c.env.DB.prepare("SELECT * FROM llm_routing_rules WHERE id = ?").bind(id).first<LLMRoutingRule>();
 
+	if (!rule) {
+		return c.json(
+			{ success: false, error: { code: "INTERNAL_ERROR", message: "Failed to retrieve updated rule" } },
+			500,
+		);
+	}
+
 	const enrichedRule = {
-		...rule!,
-		condition: JSON.parse(rule!.condition_json),
-		routes: JSON.parse(rule!.routes_json),
+		...rule,
+		condition: JSON.parse(rule.condition_json),
+		routes: JSON.parse(rule.routes_json),
 	};
 
 	const response: ApiResponse<typeof enrichedRule> = {

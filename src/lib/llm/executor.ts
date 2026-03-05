@@ -170,6 +170,10 @@ export class LLMExecutor {
 	/**
 	 * Execute an LLM request with streaming
 	 * Supports fallback to alternative providers on failure
+	 *
+	 * IMPORTANT: Once we've started yielding content chunks, we cannot safely
+	 * fall back to another provider (would produce corrupted/mixed output).
+	 * Fallback is only attempted if the provider fails before sending any content.
 	 */
 	async *executeStream(request: LLMRequest, options?: ExecutorOptions): AsyncGenerator<LLMStreamChunk, void, unknown> {
 		const maxRetries = options?.maxRetries ?? 3;
@@ -219,6 +223,7 @@ export class LLMExecutor {
 				const stream = adapter.stream(request.messages, target.model, callOptions);
 				let streamSucceeded = false;
 				let streamError: Error | undefined;
+				let hasYieldedContent = false; // Track if we've started yielding content
 
 				for await (const chunk of stream) {
 					// If this is the done chunk, log usage and mark success
@@ -234,15 +239,28 @@ export class LLMExecutor {
 							output_tokens: chunk.metrics.output_tokens,
 							cost_cents: this.calculateCost(target.provider, chunk.metrics.input_tokens, chunk.metrics.output_tokens),
 						});
+						yield chunk;
 					} else if (chunk.type === "error") {
-						// Record error but don't yield yet - try fallback first
+						// Record the error
 						streamError = new Error(chunk.error);
 						this.circuitBreaker.recordFailure(providerId);
 						this.router.updateHealth(providerId, false);
-						break;
-					}
 
-					yield chunk;
+						// If we've already yielded content, we MUST yield error and stop
+						// (cannot cleanly fallback - would produce corrupted output)
+						if (hasYieldedContent) {
+							yield chunk;
+							return;
+						}
+						// Otherwise, don't yield error yet - try fallback first
+						break;
+					} else {
+						// Content/tool chunks mean we can no longer safely fallback
+						if (chunk.type === "content" || chunk.type === "tool_use") {
+							hasYieldedContent = true;
+						}
+						yield chunk;
+					}
 				}
 
 				// If stream completed successfully, we're done
@@ -250,7 +268,8 @@ export class LLMExecutor {
 					return;
 				}
 
-				// If stream had an error, save it and try next provider
+				// If stream had an error after yielding content, we already yielded error and returned above
+				// If stream had an error before any content, save it and try next provider
 				if (streamError) {
 					lastError = streamError;
 					continue;
@@ -262,15 +281,36 @@ export class LLMExecutor {
 				lastError = error instanceof Error ? error : new Error(String(error));
 				this.circuitBreaker.recordFailure(providerId);
 				this.router.updateHealth(providerId, false);
-				// Continue to next provider
+				// Continue to next provider (no content has been yielded yet for this attempt)
 			}
 		}
 
-		// All providers failed
+		// All providers failed (no content was ever yielded)
 		yield {
 			type: "error",
 			error: lastError?.message ?? "No LLM providers available",
 		};
+	}
+
+	/**
+	 * Safely parse models_json string, returning empty array on invalid input
+	 */
+	private safeParseModelsJson(modelsJson: string | undefined | null): string[] {
+		if (!modelsJson || modelsJson.trim() === "" || modelsJson.trim() === "[]") {
+			return [];
+		}
+		try {
+			const parsed = JSON.parse(modelsJson);
+			if (!Array.isArray(parsed)) {
+				return [];
+			}
+			// Handle both string[] and ModelInfo[] formats
+			return parsed.map((item: unknown) =>
+				typeof item === "string" ? item : ((item as { id?: string })?.id ?? "unknown"),
+			);
+		} catch {
+			return [];
+		}
 	}
 
 	/**
@@ -283,6 +323,10 @@ export class LLMExecutor {
 			return adapter;
 		}
 
+		// Safely parse models_json
+		const models = this.safeParseModelsJson(provider.models_json);
+		const defaultModel = models[0] ?? "default";
+
 		// Build config from provider
 		const config: ProviderConfig = {
 			id: provider.id,
@@ -290,8 +334,8 @@ export class LLMExecutor {
 			slug: provider.slug,
 			api_type: this.inferApiType(provider.slug),
 			base_url: provider.api_base_url,
-			models_json: provider.models_json,
-			default_model: JSON.parse(provider.models_json)[0] ?? "default",
+			models_json: provider.models_json ?? "[]",
+			default_model: defaultModel,
 			cost_input_per_1m: provider.cost_per_1m_input_cents / 100,
 			cost_output_per_1m: provider.cost_per_1m_output_cents / 100,
 			rate_limit_rpm: provider.max_requests_per_min,

@@ -7,12 +7,40 @@ import { Hono } from "hono";
 import type { ApiResponse, HealthCheckResult } from "./types";
 import type { Env } from "./types/env";
 
+// Import middleware
+import {
+	corsMiddleware,
+	errorHandler,
+	loggerMiddleware,
+	rateLimitMiddleware,
+	tenantContextMiddleware,
+} from "./middleware";
+
 // Import API routes
 import { providers } from "./api/providers";
 import { routingRules } from "./api/routing-rules";
 
 // Create Hono app with typed environment
 const app = new Hono<{ Bindings: Env }>();
+
+// ============================================================================
+// Middleware Stack (applied in order per CLAUDE.md)
+// ============================================================================
+
+// 1. CORS - origin-reflection per environment
+app.use("*", corsMiddleware());
+
+// 2. Logger - structured JSON logging with trace ID
+app.use("*", loggerMiddleware());
+
+// 3. Rate limiting - KV-backed per-IP limiting
+app.use("*", rateLimitMiddleware());
+
+// 4. Tenant context - extract tenant from JWT/API key (doesn't require auth)
+app.use("*", tenantContextMiddleware());
+
+// 5. Error handler - catch all errors, return standard response
+app.onError(errorHandler);
 
 // ============================================================================
 // Mount API Routes
@@ -89,6 +117,12 @@ app.all("/api/tenants/:tenantId/*", async (c) => {
 
 // Direct tenant binding endpoint (used by provisioning workflow)
 app.post("/api/do/bind/:tenantId", async (c) => {
+	// This endpoint is internal-only (provisioning/control plane)
+	const internalAuth = c.req.header("X-DO-Auth");
+	if (internalAuth !== c.env.JWT_SECRET) {
+		return c.json({ success: false, error: { code: "UNAUTHORIZED", message: "Invalid internal auth" } }, 401);
+	}
+
 	const tenantId = c.req.param("tenantId");
 	if (!tenantId) {
 		return c.json({ success: false, error: { code: "VALIDATION_ERROR", message: "Missing tenantId" } }, 400);
@@ -101,6 +135,7 @@ app.post("/api/do/bind/:tenantId", async (c) => {
 			method: "POST",
 			headers: {
 				"X-Tenant-ID": tenantId,
+				"X-DO-Auth": c.env.JWT_SECRET,
 				"Content-Type": "application/json",
 			},
 		}),
@@ -214,6 +249,7 @@ app.get("/", (c) => {
 // ============================================================================
 
 app.notFound((c) => {
+	const traceId = c.get("traceId") ?? "unknown";
 	return c.json(
 		{
 			success: false,
@@ -221,27 +257,9 @@ app.notFound((c) => {
 				code: "NOT_FOUND",
 				message: `Route ${c.req.method} ${c.req.path} not found`,
 			},
+			trace_id: traceId,
 		},
 		404,
-	);
-});
-
-// ============================================================================
-// Global Error Handler
-// ============================================================================
-
-app.onError((err, c) => {
-	console.error("Unhandled error:", err);
-
-	return c.json(
-		{
-			success: false,
-			error: {
-				code: "INTERNAL_ERROR",
-				message: c.env.ENVIRONMENT === "production" ? "An unexpected error occurred" : err.message,
-			},
-		},
-		500,
 	);
 });
 

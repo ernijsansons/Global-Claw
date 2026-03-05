@@ -273,6 +273,27 @@ export class LLMRouter {
 	}
 
 	/**
+	 * Safely parse models_json string, returning empty array on invalid input
+	 */
+	private safeParseModelsJson(modelsJson: string | undefined | null): string[] {
+		if (!modelsJson || modelsJson.trim() === "" || modelsJson.trim() === "[]") {
+			return [];
+		}
+		try {
+			const parsed = JSON.parse(modelsJson);
+			if (!Array.isArray(parsed)) {
+				return [];
+			}
+			// Handle both string[] and ModelInfo[] formats
+			return parsed.map((item: unknown) =>
+				typeof item === "string" ? item : ((item as { id?: string })?.id ?? "unknown"),
+			);
+		} catch {
+			return [];
+		}
+	}
+
+	/**
 	 * Get default routing when no rules match
 	 */
 	private async getDefaultRoute(reason: string): Promise<RoutingDecision> {
@@ -296,8 +317,8 @@ export class LLMRouter {
 		// Cache the provider
 		this.providerCache.set(provider.slug, provider);
 
-		// Get default model from models_json
-		const models = JSON.parse(provider.models_json) as string[];
+		// Get default model from models_json (safely parsed)
+		const models = this.safeParseModelsJson(provider.models_json);
 		const defaultModel = models[0] ?? "default";
 
 		return {

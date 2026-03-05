@@ -63,11 +63,13 @@
 	},
 
 	// Environment variables (non-secret)
+	// Note: CF_ACCOUNT_ID should be set in .dev.vars locally and wrangler secret for deployed envs
 	"vars": {
 		"ENVIRONMENT": "development",
 		"APP_URL": "http://localhost:8787",
 		"DASHBOARD_URL": "http://localhost:3000",
-		"AI_GATEWAY_SLUG": "global-claw"
+		"AI_GATEWAY_SLUG": "global-claw",
+		"CF_ACCOUNT_ID": ""
 	},
 
 	// ──────────────────────────────────────────────
@@ -80,7 +82,9 @@
 			"vars": {
 				"ENVIRONMENT": "staging",
 				"APP_URL": "https://global-claw-staging.workers.dev",
-				"DASHBOARD_URL": "https://global-claw-dashboard.pages.dev"
+				"DASHBOARD_URL": "https://global-claw-dashboard.pages.dev",
+				"AI_GATEWAY_SLUG": "global-claw",
+				"CF_ACCOUNT_ID": ""
 			},
 			"d1_databases": [
 				{
@@ -118,7 +122,9 @@
 			"vars": {
 				"ENVIRONMENT": "production",
 				"APP_URL": "https://api.global-claw.com",
-				"DASHBOARD_URL": "https://app.global-claw.com"
+				"DASHBOARD_URL": "https://app.global-claw.com",
+				"AI_GATEWAY_SLUG": "global-claw",
+				"CF_ACCOUNT_ID": ""
 			},
 			"routes": [{ "pattern": "api.global-claw.com/*", "zone_name": "global-claw.com" }],
 			"d1_databases": [

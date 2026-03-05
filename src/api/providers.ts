@@ -6,12 +6,17 @@
  */
 
 import { Hono } from "hono";
+import { requireAuth, requireRole } from "../lib/auth/middleware";
 import { encrypt } from "../lib/crypto";
 import { getCircuitBreaker } from "../lib/llm/circuit-breaker";
 import type { ApiResponse, LLMProvider, Pagination } from "../types";
 import type { Env } from "../types/env";
 
 const providers = new Hono<{ Bindings: Env }>();
+
+// All provider routes require admin authentication
+providers.use("/*", requireAuth());
+providers.use("/*", requireRole("owner", "admin"));
 
 // ============================================================================
 // List Providers
@@ -193,8 +198,15 @@ providers.post("/", async (c) => {
 	// Fetch the created provider
 	const provider = await c.env.DB.prepare("SELECT * FROM llm_providers WHERE id = ?").bind(id).first<LLMProvider>();
 
+	if (!provider) {
+		return c.json(
+			{ success: false, error: { code: "INTERNAL_ERROR", message: "Failed to retrieve created provider" } },
+			500,
+		);
+	}
+
 	// Exclude api_key_encrypted from response
-	const { api_key_encrypted: _, ...safeProvider } = provider!;
+	const { api_key_encrypted: _, ...safeProvider } = provider;
 
 	return c.json(
 		{
@@ -309,8 +321,15 @@ providers.patch("/:id", async (c) => {
 	// Fetch updated provider
 	const provider = await c.env.DB.prepare("SELECT * FROM llm_providers WHERE id = ?").bind(id).first<LLMProvider>();
 
+	if (!provider) {
+		return c.json(
+			{ success: false, error: { code: "INTERNAL_ERROR", message: "Failed to retrieve updated provider" } },
+			500,
+		);
+	}
+
 	// Exclude api_key_encrypted from response
-	const { api_key_encrypted, ...safeProvider } = provider!;
+	const { api_key_encrypted, ...safeProvider } = provider;
 
 	return c.json({
 		success: true,
@@ -329,8 +348,10 @@ providers.patch("/:id", async (c) => {
 providers.delete("/:id", async (c) => {
 	const id = c.req.param("id");
 
-	// Check provider exists
-	const existing = await c.env.DB.prepare("SELECT id FROM llm_providers WHERE id = ?").bind(id).first();
+	// Check provider exists and get slug for routing rule check
+	const existing = await c.env.DB.prepare("SELECT id, slug FROM llm_providers WHERE id = ?")
+		.bind(id)
+		.first<{ id: string; slug: string }>();
 
 	if (!existing) {
 		return c.json(
@@ -342,9 +363,9 @@ providers.delete("/:id", async (c) => {
 		);
 	}
 
-	// Check if provider is referenced in routing rules
+	// Check if provider is referenced in routing rules (routes_json uses provider_slug, not provider_id)
 	const rulesResult = await c.env.DB.prepare("SELECT COUNT(*) as count FROM llm_routing_rules WHERE routes_json LIKE ?")
-		.bind(`%"provider_id":"${id}"%`)
+		.bind(`%"provider_slug":"${existing.slug}"%`)
 		.first<{ count: number }>();
 
 	if (rulesResult && rulesResult.count > 0) {
