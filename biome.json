@@ -38,6 +38,26 @@
 		}
 	},
 	"files": {
-		"ignore": ["node_modules", "dist", ".wrangler", ".tmp", "*.json", "worker-configuration.d.ts"]
-	}
+		"ignore": [
+			"node_modules",
+			"dist",
+			".wrangler",
+			".tmp",
+			"*.json",
+			"worker-configuration.d.ts",
+			"dashboard/.svelte-kit"
+		]
+	},
+	"overrides": [
+		{
+			"include": ["dashboard/**/*.svelte"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUnusedVariables": "off"
+					}
+				}
+			}
+		}
+	]
 }
