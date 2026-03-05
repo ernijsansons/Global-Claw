@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Neural Cartography Design System - Base Styles */
+@layer base {
+	:root {
+		--bg-root: #0a0a0f;
+		--bg-surface: #12121a;
+		--bg-elevated: #1a1a26;
+		--border-subtle: #1f1f2e;
+		--border-focus: #3b82f6;
+		--text-primary: #f0f0f5;
+		--text-secondary: #8b8ba3;
+		--text-muted: #4a4a6a;
+		--accent-blue: #3b82f6;
+		--accent-emerald: #10b981;
+		--accent-amber: #f59e0b;
+		--accent-rose: #ef4444;
+		--accent-violet: #8b5cf6;
+		--accent-cyan: #06b6d4;
+	}
+
+	body {
+		font-family: "InstrumentSans", system-ui, sans-serif;
+		background-color: var(--bg-root);
+		color: var(--text-primary);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	/* Focus ring for accessibility */
+	:focus-visible {
+		outline: 2px solid var(--border-focus);
+		outline-offset: 2px;
+	}
+}
+
+@layer components {
+	/* Card component */
+	.gc-card {
+		@apply rounded-gc bg-gc-bg-surface border border-gc-border-subtle p-gc;
+	}
+
+	.gc-card-compact {
+		@apply rounded-gc bg-gc-bg-surface border border-gc-border-subtle p-gc-compact;
+	}
+
+	/* Button components */
+	.gc-btn {
+		@apply px-4 py-2 rounded-lg font-medium transition-all duration-150;
+		@apply focus:outline-none focus-visible:ring-2 focus-visible:ring-gc-accent-blue focus-visible:ring-offset-2 focus-visible:ring-offset-gc-bg-root;
+	}
+
+	.gc-btn-primary {
+		@apply gc-btn bg-gc-accent-blue text-white hover:bg-blue-500;
+	}
+
+	.gc-btn-secondary {
+		@apply gc-btn bg-gc-bg-elevated text-gc-text-primary border border-gc-border-subtle hover:border-gc-border-focus;
+	}
+
+	.gc-btn-danger {
+		@apply gc-btn bg-gc-accent-rose text-white hover:bg-red-500;
+	}
+
+	/* Input components */
+	.gc-input {
+		@apply w-full px-3 py-2 rounded-lg bg-gc-bg-elevated border border-gc-border-subtle;
+		@apply text-gc-text-primary placeholder:text-gc-text-muted;
+		@apply focus:outline-none focus:border-gc-border-focus focus:ring-1 focus:ring-gc-accent-blue;
+	}
+
+	/* Status indicators */
+	.gc-status-online {
+		@apply w-2 h-2 rounded-full bg-gc-accent-emerald;
+	}
+
+	.gc-status-idle {
+		@apply w-2 h-2 rounded-full bg-gc-accent-amber;
+	}
+
+	.gc-status-error {
+		@apply w-2 h-2 rounded-full bg-gc-accent-rose;
+	}
+
+	/* Sidebar navigation */
+	.gc-nav-item {
+		@apply flex items-center gap-3 px-3 py-2 rounded-lg text-gc-text-secondary;
+		@apply hover:bg-gc-bg-elevated hover:text-gc-text-primary transition-colors;
+	}
+
+	.gc-nav-item.active {
+		@apply bg-gc-bg-elevated text-gc-text-primary;
+	}
+
+	/* Metrics cards */
+	.gc-metric-card {
+		@apply gc-card flex flex-col gap-2;
+	}
+
+	.gc-metric-value {
+		@apply text-3xl font-bold text-gc-text-primary;
+	}
+
+	.gc-metric-label {
+		@apply text-sm text-gc-text-secondary;
+	}
+
+	/* Table styles */
+	.gc-table {
+		@apply w-full;
+	}
+
+	.gc-table th {
+		@apply text-left text-sm font-medium text-gc-text-secondary pb-3 border-b border-gc-border-subtle;
+	}
+
+	.gc-table td {
+		@apply py-3 border-b border-gc-border-subtle text-gc-text-primary;
+	}
+
+	.gc-table tr:hover td {
+		@apply bg-gc-bg-elevated;
+	}
+}
+
+/* Animations */
+@keyframes pulse-glow {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+.gc-pulse {
+	animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+/* Skeleton loading */
+@keyframes skeleton-loading {
+	0% {
+		background-position: -200px 0;
+	}
+	100% {
+		background-position: calc(200px + 100%) 0;
+	}
+}
+
+.gc-skeleton {
+	background: linear-gradient(
+		90deg,
+		var(--bg-surface) 0px,
+		var(--bg-elevated) 40px,
+		var(--bg-surface) 80px
+	);
+	background-size: 200px 100%;
+	animation: skeleton-loading 1.5s ease-in-out infinite;
+}
