@@ -1,36 +1,37 @@
 <script lang="ts">
-import "../app.css";
-import { auth } from "$lib/stores";
-import { onMount } from "svelte";
+	import "../app.css";
+	import { page } from "$app/stores";
+	import { auth, isAuthenticated, currentUser } from "$lib/stores";
+	import { onMount } from "svelte";
 
-// Main navigation items
-const mainNavItems = [
-	{ path: "/", label: "Overview", icon: "📊" },
-	{ path: "/agents", label: "Agents", icon: "🤖" },
-	{ path: "/workflows", label: "Workflows", icon: "⚡" },
-	{ path: "/memory", label: "Memory", icon: "🧠" },
-	{ path: "/integrations", label: "Integrations", icon: "🔌" },
-	{ path: "/llm-providers", label: "LLM Providers", icon: "🎛️" },
-	{ path: "/conversations", label: "Conversations", icon: "💬" },
-	{ path: "/analytics", label: "Analytics", icon: "📈" },
-];
+	// Main navigation items
+	const mainNavItems = [
+		{ path: "/", label: "Overview", icon: "📊" },
+		{ path: "/agents", label: "Agents", icon: "🤖" },
+		{ path: "/workflows", label: "Workflows", icon: "⚡" },
+		{ path: "/memory", label: "Memory", icon: "🧠" },
+		{ path: "/integrations", label: "Integrations", icon: "🔌" },
+		{ path: "/llm-providers", label: "LLM Providers", icon: "🎛️" },
+		{ path: "/conversations", label: "Conversations", icon: "💬" },
+		{ path: "/analytics", label: "Analytics", icon: "📈" },
+	];
 
-// Admin navigation items
-const adminNavItems = [
-	{ path: "/tenants", label: "Tenants", icon: "🏢" },
-	{ path: "/partners", label: "Partners", icon: "🤝" },
-	{ path: "/billing", label: "Billing", icon: "💳" },
-	{ path: "/settings", label: "Settings", icon: "⚙️" },
-];
+	// Admin navigation items
+	const adminNavItems = [
+		{ path: "/tenants", label: "Tenants", icon: "🏢" },
+		{ path: "/partners", label: "Partners", icon: "🤝" },
+		{ path: "/billing", label: "Billing", icon: "💳" },
+		{ path: "/settings", label: "Settings", icon: "⚙️" },
+	];
 
-// Combined for header title lookup
-const _allNavItems = [...mainNavItems, ...adminNavItems];
+	// Combined for header title lookup
+	const allNavItems = [...mainNavItems, ...adminNavItems];
 
-const _sidebarExpanded = true;
+	let sidebarExpanded = true;
 
-onMount(() => {
-	auth.init();
-});
+	onMount(() => {
+		auth.init();
+	});
 </script>
 
 <div class="flex min-h-screen bg-gc-bg-root">

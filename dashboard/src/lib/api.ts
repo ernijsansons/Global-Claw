@@ -46,7 +46,11 @@ class ApiClient {
 		return this.token;
 	}
 
-	private async request<T>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>> {
+	private async request<T>(
+		method: string,
+		path: string,
+		body?: unknown
+	): Promise<ApiResponse<T>> {
 		const headers: Record<string, string> = {
 			"Content-Type": "application/json",
 		};
@@ -81,7 +85,7 @@ class ApiClient {
 	}
 
 	// Dashboard
-	async getOverview(_tenantId: string) {
+	async getOverview(tenantId: string) {
 		return this.request<{
 			active_agents: { count: number; change_pct: number };
 			messages_today: { count: number; sparkline: number[] };
@@ -106,10 +110,10 @@ class ApiClient {
 				timestamp: string;
 				agent_name?: string;
 			}>;
-		}>("GET", "/api/dashboard/overview");
+		}>("GET", `/api/dashboard/overview`);
 	}
 
-	async getAnalytics(days = 7) {
+	async getAnalytics(days: number = 7) {
 		return this.request<{
 			period: { start: string; end: string; days: number };
 			summary: {
@@ -139,7 +143,7 @@ class ApiClient {
 		}>("GET", `/api/dashboard/analytics?days=${days}`);
 	}
 
-	async getLLMCost(days = 30) {
+	async getLLMCost(days: number = 30) {
 		return this.request<{
 			period: { start: string; end: string };
 			totals: {
@@ -166,7 +170,7 @@ class ApiClient {
 	}
 
 	// Agents
-	async getAgents(tenantId: string, page = 1, limit = 20) {
+	async getAgents(tenantId: string, page: number = 1, limit: number = 20) {
 		return this.request<
 			Array<{
 				id: string;
@@ -210,7 +214,7 @@ class ApiClient {
 			llm_model: string;
 			temperature: number;
 			max_tokens: number;
-		}>,
+		}>
 	) {
 		return this.request<{ id: string }>("PATCH", `/api/tenants/${tenantId}/agents/${agentId}`, data);
 	}

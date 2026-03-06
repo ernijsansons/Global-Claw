@@ -3,9 +3,9 @@
  * Manages authentication state
  */
 
+import { writable, derived } from "svelte/store";
 import { browser } from "$app/environment";
 import { api } from "$lib/api";
-import { derived, writable } from "svelte/store";
 
 interface User {
 	id: string;
