@@ -4,13 +4,13 @@
 **Last Updated:** 2026-03-06T17:15:00-06:00
 **Tester:** Claude Opus 4.5
 
-## Critical Blockers
+## All Blockers RESOLVED
 
-| Blocker | Status | Action Required |
-|---------|--------|-----------------|
+| Item | Status | Verified |
+|------|--------|----------|
 | Production Secrets | ✓ RESOLVED | All 5 secrets configured |
-| DNS Configuration | NOT CONFIGURED | Add zone and configure A/AAAA records |
-| Custom Domains | NOT ACCESSIBLE | DNS must resolve first |
+| DNS Configuration | ✓ RESOLVED | Zone configured, records active |
+| Custom Domains | ✓ RESOLVED | Both domains accessible |
 
 ## Secrets Verification (2026-03-06T17:45:00-06:00)
 
@@ -25,25 +25,21 @@
 | STRIPE_WEBHOOK_SECRET | YES | ✓ SET |
 | TELEGRAM_WEBHOOK_SECRET | YES | ✓ SET |
 
-## DNS Verification (2026-03-06T17:12:00-06:00)
+## DNS Verification (2026-03-06T21:10:00-06:00)
 
 **Commands:**
 ```
 nslookup api.global-claw.com
-→ Non-existent domain
+→ 104.21.3.188, 172.67.131.26 (Cloudflare)
 
 nslookup app.global-claw.com
-→ Non-existent domain
-
-nslookup global-claw.com
-→ Name exists but no A/AAAA records
+→ 104.21.3.188, 172.67.131.26 (Cloudflare)
 ```
 
 | Domain | DNS Status | HTTP Status |
 |--------|------------|-------------|
-| global-claw.com | Exists (no records) | N/A |
-| api.global-claw.com | NXDOMAIN | ENOTFOUND |
-| app.global-claw.com | NXDOMAIN | ENOTFOUND |
+| api.global-claw.com | ✓ RESOLVES | 200 OK |
+| app.global-claw.com | ✓ RESOLVES | 200 OK |
 
 ## Test Environment
 
@@ -119,8 +115,27 @@ The Worker is deployed with route `api.global-claw.com/*` but the domain `global
 
 | Category | Pass | Blocked | Fail |
 |----------|------|---------|------|
-| Dashboard | 1 | 0 | 0 |
-| API | 0 | 3 | 0 |
+| Dashboard | 2 | 0 | 0 |
+| API | 3 | 0 | 0 |
 | Infrastructure | 7 | 0 | 0 |
 
-**Overall Status:** PARTIAL PASS (dashboard live, API pending DNS configuration)
+**Overall Status:** ALL TESTS PASS
+
+## Final Smoke Test Results (2026-03-06T21:11:00-06:00)
+
+| Test | URL | Result |
+|------|-----|--------|
+| Health Check | https://api.global-claw.com/api/health | ✓ 200 OK |
+| Dashboard (Pages) | https://app.global-claw.com/ | ✓ Loads |
+| Auth Protected | https://api.global-claw.com/api/tenants | ✓ 401 Unauthorized |
+
+**Health Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "status": "ok",
+    "database": { "ok": true, "latency_ms": 240 }
+  }
+}
+```
