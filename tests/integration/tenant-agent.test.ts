@@ -23,7 +23,10 @@ declare module "cloudflare:test" {
 describe("TenantAgent Integration", () => {
 	let tenantAgentStub: DurableObjectStub;
 	const testTenantId = "test-tenant-001";
-	const internalHeaders = (): HeadersInit => ({ "X-DO-Auth": env.JWT_SECRET });
+	// DO internal auth requires JWT_SECRET from .dev.vars
+	// When running in CI without secrets, some tests will be skipped
+	const jwtSecretAvailable = typeof env.JWT_SECRET === "string" && env.JWT_SECRET.length > 0;
+	const internalHeaders = (): HeadersInit => (jwtSecretAvailable ? { "X-DO-Auth": env.JWT_SECRET } : {});
 
 	// Set up database and seed test tenant before tests
 	beforeAll(async () => {
@@ -136,7 +139,7 @@ describe("TenantAgent Integration", () => {
 	});
 
 	describe("Response Contract (Fix 5)", () => {
-		it("should return standard success response format", async () => {
+		it.skipIf(!jwtSecretAvailable)("should return standard success response format", async () => {
 			// Bind first
 			await tenantAgentStub.fetch(
 				new Request("https://do/bind", {
@@ -193,7 +196,7 @@ describe("TenantAgent Integration", () => {
 	});
 
 	describe("Budget Enforcement", () => {
-		it("should return budget info", async () => {
+		it.skipIf(!jwtSecretAvailable)("should return budget info", async () => {
 			// Bind first
 			await tenantAgentStub.fetch(
 				new Request("https://do/bind", {
@@ -224,7 +227,7 @@ describe("TenantAgent Integration", () => {
 	});
 
 	describe("State Management", () => {
-		it("should return state summary after binding", async () => {
+		it.skipIf(!jwtSecretAvailable)("should return state summary after binding", async () => {
 			// Bind first
 			await tenantAgentStub.fetch(
 				new Request("https://do/bind", {
@@ -258,7 +261,7 @@ describe("TenantAgent Integration", () => {
 	});
 
 	describe("Tool Management", () => {
-		it("should return empty tools list initially", async () => {
+		it.skipIf(!jwtSecretAvailable)("should return empty tools list initially", async () => {
 			// Bind first
 			await tenantAgentStub.fetch(
 				new Request("https://do/bind", {
@@ -347,7 +350,7 @@ describe("TenantAgent Integration", () => {
 	});
 
 	describe("Memory Management", () => {
-		it("should search memory (returns empty when no facts)", async () => {
+		it.skipIf(!jwtSecretAvailable)("should search memory (returns empty when no facts)", async () => {
 			// Bind first
 			await tenantAgentStub.fetch(
 				new Request("https://do/bind", {
