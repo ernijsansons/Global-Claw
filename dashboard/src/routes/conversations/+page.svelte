@@ -83,7 +83,8 @@ const conversations = [
 ];
 
 // Selected conversation
-const selectedConversation: (typeof conversations)[0] | null = conversations[0];
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
+let selectedConversation: (typeof conversations)[0] | null = conversations[0];
 
 type ConversationMessage =
 	| {

@@ -1,6 +1,10 @@
 <script lang="ts">
 import { api } from "$lib/api";
+import { tenantId } from "$lib/stores";
 import { onMount } from "svelte";
+
+// Linter: tenantId store is used via $tenantId reactive subscription below
+void tenantId;
 
 // Demo workflows
 const demoWorkflows = [
@@ -69,8 +73,10 @@ const demoEdges = [
 type Workflow = (typeof demoWorkflows)[0];
 let workflows: Workflow[] = demoWorkflows;
 let loading = true;
-const selectedWorkflow: Workflow | null = demoWorkflows[0];
-const inspectorNode: (typeof demoNodes)[0] | null = null;
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
+let selectedWorkflow: Workflow | null = demoWorkflows[0];
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
+let inspectorNode: (typeof demoNodes)[0] | null = null;
 
 onMount(async () => {
 	if ($tenantId) {

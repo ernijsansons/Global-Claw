@@ -1,8 +1,11 @@
 <script lang="ts">
 // Filters
-const searchQuery = "";
-const filterPlan = "all";
-const filterStatus = "all";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let searchQuery = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let filterPlan = "all";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let filterStatus = "all";
 
 // Sample tenants data
 const tenants = [
@@ -153,7 +156,8 @@ const plans = ["starter", "pro", "business", "enterprise"];
 const statuses = ["active", "suspended"];
 
 // Selected tenant for detail panel
-const selectedTenant: (typeof tenants)[0] | null = null;
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
+let selectedTenant: (typeof tenants)[0] | null = null;
 
 // Bulk selection
 let selectedTenantIds: string[] = [];

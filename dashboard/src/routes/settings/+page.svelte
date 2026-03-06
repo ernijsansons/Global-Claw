@@ -1,6 +1,7 @@
 <script lang="ts">
 // Active tab
-const activeTab: "team" | "api-keys" | "branding" | "notifications" | "danger" = "team";
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
+let activeTab: "team" | "api-keys" | "branding" | "notifications" | "danger" = "team";
 
 // Team members
 const teamMembers = [
@@ -12,8 +13,10 @@ const teamMembers = [
 const pendingInvites = [{ email: "invited@acmecorp.com", sentAt: "2026-03-03" }];
 
 // Invite form
-const inviteEmail = "";
-const inviteRole = "member";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let inviteEmail = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let inviteRole = "member";
 
 // API keys
 const apiKeys = [
@@ -36,8 +39,10 @@ const apiKeys = [
 ];
 
 // New key form
-const newKeyName = "";
-const newKeyScopes = {
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let newKeyName = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let newKeyScopes = {
 	agentsRead: true,
 	agentsWrite: true,
 	conversationsRead: true,
@@ -48,15 +53,22 @@ const newKeyScopes = {
 };
 
 // Branding settings
-const brandingLogo: string | null = null;
-const primaryColor = "#3B82F6";
-const accentColor = "#8B5CF6";
-const widgetName = "My Company Chatbot";
-const useCustomDomain = false;
-const customSubdomain = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let brandingLogo: string | null = null;
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let primaryColor = "#3B82F6";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let accentColor = "#8B5CF6";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let widgetName = "My Company Chatbot";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let useCustomDomain = false;
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let customSubdomain = "";
 
 // Notification settings
-const notifications = {
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let notifications = {
 	dailySummary: true,
 	agentErrors: true,
 	usageLimit: true,
@@ -66,7 +78,8 @@ const notifications = {
 };
 
 // Delete confirmation
-const deleteConfirmation = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let deleteConfirmation = "";
 
 function formatDate(dateStr: string): string {
 	const date = new Date(dateStr);
