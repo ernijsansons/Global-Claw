@@ -151,12 +151,7 @@
 }
 
 .gc-skeleton {
-	background: linear-gradient(
-		90deg,
-		var(--bg-surface) 0px,
-		var(--bg-elevated) 40px,
-		var(--bg-surface) 80px
-	);
+	background: linear-gradient(90deg, var(--bg-surface) 0px, var(--bg-elevated) 40px, var(--bg-surface) 80px);
 	background-size: 200px 100%;
 	animation: skeleton-loading 1.5s ease-in-out infinite;
 }

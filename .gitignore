@@ -25,3 +25,6 @@ dashboard/node_modules/
 Thumbs.db
 .fuse_hidden*
 **/.fuse_hidden*
+
+# Playwright MCP transient logs
+.playwright-mcp/

@@ -59,7 +59,7 @@ interface AnalyticsData {
  * Get analytics data for dashboard charts
  */
 analytics.get("/analytics", async (c) => {
-	const tenantId = c.get("tenantId");
+	const tenantId = c.get("tenant")?.tenant_id;
 	const days = Number.parseInt(c.req.query("days") ?? "7", 10);
 
 	if (!tenantId) {
@@ -78,16 +78,16 @@ analytics.get("/analytics", async (c) => {
 
 	// Get messages over time from usage_daily
 	const usageData = await c.env.DB.prepare(
-		`SELECT day, messages FROM usage_daily
+		`SELECT day, messages_sent FROM usage_daily
 		 WHERE tenant_id = ? AND day >= ? AND day <= ?
 		 ORDER BY day ASC`,
 	)
 		.bind(tenantId, startDate.toISOString().split("T")[0], endDate.toISOString().split("T")[0])
-		.all<{ day: string; messages: number }>();
+		.all<{ day: string; messages_sent: number }>();
 
 	const messagesOverTime = (usageData.results ?? []).map((d) => ({
 		date: d.day,
-		count: d.messages,
+		count: d.messages_sent,
 	}));
 
 	// Get agent performance
@@ -107,20 +107,21 @@ analytics.get("/analytics", async (c) => {
 		escape_rate: Math.round(Math.random() * 50) / 10, // Would need escalation tracking
 	}));
 
-	// Get LLM cost breakdown
+	// Get LLM cost breakdown - join with llm_providers to get slug, cost_cents is in cents
 	const costData = await c.env.DB.prepare(
-		`SELECT provider_slug, SUM(cost_usd) as total FROM llm_usage_log
-		 WHERE tenant_id = ? AND timestamp > datetime('now', '-${days} day')
-		 GROUP BY provider_slug ORDER BY total DESC`,
+		`SELECT p.slug as provider_slug, SUM(l.cost_cents) as total FROM llm_usage_log l
+		 LEFT JOIN llm_providers p ON l.provider_id = p.id
+		 WHERE l.tenant_id = ? AND l.created_at > datetime('now', '-${days} day')
+		 GROUP BY p.slug ORDER BY total DESC`,
 	)
 		.bind(tenantId)
 		.all<{ provider_slug: string; total: number }>();
 
-	const totalCost = (costData.results ?? []).reduce((sum, c) => sum + c.total, 0);
+	const totalCostCents = (costData.results ?? []).reduce((sum, c) => sum + c.total, 0);
 	const llmCostBreakdown = (costData.results ?? []).map((c) => ({
-		provider: c.provider_slug,
-		cost_usd: c.total,
-		percentage: totalCost > 0 ? Math.round((c.total / totalCost) * 100) : 0,
+		provider: c.provider_slug ?? "unknown",
+		cost_usd: c.total / 100, // Convert cents to USD
+		percentage: totalCostCents > 0 ? Math.round((c.total / totalCostCents) * 100) : 0,
 	}));
 
 	// Get language distribution (would need to track this in messages)
@@ -156,7 +157,7 @@ analytics.get("/analytics", async (c) => {
 			avg_response_time_ms: 1200, // Would aggregate from actual data
 			issue_resolution_rate: 87.4,
 			customer_satisfaction: 4.2,
-			total_cost_usd: totalCost,
+			total_cost_usd: totalCostCents / 100,
 		},
 		messages_over_time: messagesOverTime,
 		agent_performance: agentPerformance,

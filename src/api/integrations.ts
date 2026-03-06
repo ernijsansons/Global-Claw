@@ -293,16 +293,17 @@ integrations.get("/oauth/:provider/callback", async (c) => {
 		const connectionId = crypto.randomUUID();
 		await c.env.DB.prepare(
 			`INSERT INTO plugin_connections (
-				id, tenant_id, agent_id, provider,
+				id, tenant_id, agent_id, provider, display_name,
 				oauth_access_token_encrypted, oauth_refresh_token_encrypted,
-				status, scopes_json, created_at
-			) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, datetime('now'))`,
+				status, scopes_json, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, 'connected', ?, datetime('now'), datetime('now'))`,
 		)
 			.bind(
 				connectionId,
 				stateData.tenant_id,
 				stateData.agent_id ?? null,
 				provider,
+				providerConfig.name, // display_name
 				encryptedAccessToken,
 				encryptedRefreshToken,
 				JSON.stringify(providerConfig.scopes),
@@ -347,9 +348,10 @@ integrations.delete("/tenants/:tenantId/integrations/:id", requireRole("owner", 
 	await c.env.DB.prepare("DELETE FROM plugin_connections WHERE id = ?").bind(connectionId).run();
 
 	// Log audit event
+	const tenant = c.get("tenant");
 	await c.env.AUDIT_QUEUE.send({
 		tenant_id: tenantId,
-		actor_id: c.get("userId") ?? "unknown",
+		actor_id: tenant?.user_id ?? "unknown",
 		actor_type: "user",
 		action: "integration.disconnected",
 		resource_type: "plugin_connection",
@@ -418,7 +420,8 @@ integrations.post("/tenants/:tenantId/integrations/:id/refresh", requireRole("ow
 			`UPDATE plugin_connections SET
 				oauth_access_token_encrypted = ?,
 				oauth_refresh_token_encrypted = ?,
-				status = 'active'
+				status = 'connected',
+				updated_at = datetime('now')
 			WHERE id = ?`,
 		)
 			.bind(encryptedAccessToken, encryptedRefreshToken, connectionId)

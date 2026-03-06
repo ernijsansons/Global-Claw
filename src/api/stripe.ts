@@ -13,6 +13,7 @@ import type { Env } from "../types/env";
 import type { ProvisioningInput } from "../workflows/provisioning";
 
 const stripe = new Hono<{ Bindings: Env }>();
+const STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;
 
 /**
  * Plan mapping from Stripe price IDs to plan names
@@ -42,26 +43,28 @@ async function verifyStripeSignature(
 ): Promise<{ valid: boolean; timestamp?: number }> {
 	// Parse the signature header
 	const elements = signature.split(",");
-	const signatureData: Record<string, string> = {};
+	let timestamp: string | undefined;
+	const v1Signatures: string[] = [];
 
 	for (const element of elements) {
 		const [key, value] = element.split("=");
 		if (key && value) {
-			signatureData[key] = value;
+			if (key === "t") {
+				timestamp = value;
+			} else if (key === "v1") {
+				v1Signatures.push(value);
+			}
 		}
 	}
 
-	const timestamp = signatureData.t;
-	const v1Signature = signatureData.v1;
-
-	if (!timestamp || !v1Signature) {
+	if (!timestamp || v1Signatures.length === 0) {
 		return { valid: false };
 	}
 
 	// Check timestamp is within tolerance (5 minutes)
 	const timestampNum = Number.parseInt(timestamp, 10);
 	const now = Math.floor(Date.now() / 1000);
-	if (Math.abs(now - timestampNum) > 300) {
+	if (Math.abs(now - timestampNum) > STRIPE_WEBHOOK_TOLERANCE_SECONDS) {
 		return { valid: false };
 	}
 
@@ -80,17 +83,24 @@ async function verifyStripeSignature(
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
 
-	// Constant-time comparison
-	if (expectedSignature.length !== v1Signature.length) {
-		return { valid: false };
+	// Constant-time comparison against every v1 signature value.
+	// Stripe may include multiple v1 signatures in a single header.
+	for (const candidateSignature of v1Signatures) {
+		if (expectedSignature.length !== candidateSignature.length) {
+			continue;
+		}
+
+		let result = 0;
+		for (let i = 0; i < expectedSignature.length; i++) {
+			result |= expectedSignature.charCodeAt(i) ^ candidateSignature.charCodeAt(i);
+		}
+
+		if (result === 0) {
+			return { valid: true, timestamp: timestampNum };
+		}
 	}
 
-	let result = 0;
-	for (let i = 0; i < expectedSignature.length; i++) {
-		result |= expectedSignature.charCodeAt(i) ^ v1Signature.charCodeAt(i);
-	}
-
-	return { valid: result === 0, timestamp: timestampNum };
+	return { valid: false };
 }
 
 /**
@@ -140,9 +150,7 @@ stripe.post("/webhook", async (c) => {
 	}
 
 	// Check idempotency - have we already processed this event?
-	const existingEvent = await c.env.DB.prepare("SELECT id FROM stripe_events WHERE event_id = ?")
-		.bind(event.id)
-		.first();
+	const existingEvent = await c.env.DB.prepare("SELECT 1 FROM stripe_events WHERE event_id = ?").bind(event.id).first();
 
 	if (existingEvent) {
 		// Already processed, return success to prevent retries
@@ -178,11 +186,11 @@ stripe.post("/webhook", async (c) => {
 				console.info(`Unhandled Stripe event type: ${event.type}`);
 		}
 
-		// Record the event for idempotency
+		// Record the event for idempotency (event_id is the PK)
 		await c.env.DB.prepare(
-			"INSERT INTO stripe_events (id, event_id, event_type, processed_at) VALUES (?, ?, ?, datetime('now'))",
+			"INSERT INTO stripe_events (event_id, event_type, processed_at) VALUES (?, ?, datetime('now'))",
 		)
-			.bind(crypto.randomUUID(), event.id, event.type)
+			.bind(event.id, event.type)
 			.run();
 
 		return c.json({ success: true, data: { received: true } });
@@ -315,14 +323,15 @@ async function handleSubscriptionUpdated(env: Env, event: StripeEvent): Promise<
 	const newPlan = PRICE_TO_PLAN[priceId] ?? "starter";
 
 	// Plan limits
+	const defaultLimits = { token_budget_daily: 5_000_000, msg_budget_daily: 2_500, max_agents: 1 };
 	const planLimits: Record<string, { token_budget_daily: number; msg_budget_daily: number; max_agents: number }> = {
-		starter: { token_budget_daily: 5_000_000, msg_budget_daily: 2_500, max_agents: 1 },
+		starter: defaultLimits,
 		pro: { token_budget_daily: 50_000_000, msg_budget_daily: 10_000, max_agents: 5 },
 		business: { token_budget_daily: 500_000_000, msg_budget_daily: 100_000, max_agents: 25 },
 		enterprise: { token_budget_daily: -1, msg_budget_daily: -1, max_agents: -1 },
 	};
 
-	const limits = planLimits[newPlan] ?? planLimits.starter;
+	const limits = planLimits[newPlan] ?? defaultLimits;
 
 	// Update tenant plan and limits
 	await env.DB.prepare(

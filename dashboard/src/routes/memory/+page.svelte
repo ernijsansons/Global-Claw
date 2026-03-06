@@ -1,141 +1,144 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+// View modes
+type ViewMode = "timeline" | "graph" | "table";
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
+let viewMode: ViewMode = "timeline";
 
-	// View modes
-	type ViewMode = 'timeline' | 'graph' | 'table';
-	let viewMode: ViewMode = 'timeline';
+// Search and filters (reassigned via template bind:value)
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let searchQuery = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let selectedAgent = "all";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
+let selectedType = "all";
 
-	// Search and filters
-	let searchQuery = '';
-	let selectedAgent = 'all';
-	let selectedType = 'all';
+// Memory stats
+const stats = {
+	conversations: { count: 12847, sessions: 1247 },
+	facts: { count: 342, agents: 12 },
+	vectors: { count: 8901 },
+};
 
-	// Memory stats
-	const stats = {
-		conversations: { count: 12847, sessions: 1247 },
-		facts: { count: 342, agents: 12 },
-		vectors: { count: 8901 }
+// Sample memory entries
+const memoryEntries = [
+	{
+		id: "1",
+		type: "conversation",
+		content: 'Customer "TechCo" asked about pricing for enterprise plan',
+		agent: "Sales-LV",
+		confidence: 0.94,
+		timestamp: "2026-03-04T14:23:00Z",
+		usageCount: 3,
+	},
+	{
+		id: "2",
+		type: "fact",
+		content: "TechCo budget is €50K/year for AI tools",
+		agent: "Sales-LV",
+		confidence: 0.89,
+		timestamp: "2026-03-03T10:15:00Z",
+		source: "conversation #892",
+		usageCount: 12,
+	},
+	{
+		id: "3",
+		type: "faq",
+		content: "How to reset password → Navigate to Settings > Security > Reset Password",
+		agent: "Support-EN",
+		confidence: 0.97,
+		timestamp: "2026-03-03T09:00:00Z",
+		usageCount: 47,
+	},
+	{
+		id: "4",
+		type: "entity",
+		content: "Contact: John Smith (john@techco.com) - CTO at TechCo",
+		agent: "Sales-LV",
+		confidence: 0.92,
+		timestamp: "2026-03-02T16:45:00Z",
+		usageCount: 8,
+	},
+	{
+		id: "5",
+		type: "conversation",
+		content: "User requested demo of workflow automation features",
+		agent: "Sales-EN",
+		confidence: 0.88,
+		timestamp: "2026-03-02T11:30:00Z",
+		usageCount: 1,
+	},
+];
+
+// Graph nodes for visualization
+const graphNodes = [
+	{ id: "techco", label: "TechCo", type: "entity", x: 200, y: 150, size: 40 },
+	{ id: "john", label: "John Smith", type: "person", x: 350, y: 100, size: 30 },
+	{ id: "budget", label: "€50K Budget", type: "fact", x: 150, y: 280, size: 25 },
+	{ id: "pricing", label: "Enterprise Pricing", type: "topic", x: 320, y: 250, size: 35 },
+	{ id: "demo", label: "Demo Request", type: "event", x: 450, y: 180, size: 28 },
+	{ id: "workflow", label: "Workflow Automation", type: "topic", x: 500, y: 300, size: 32 },
+];
+
+const graphEdges = [
+	{ from: "techco", to: "john", label: "CTO" },
+	{ from: "techco", to: "budget", label: "has" },
+	{ from: "techco", to: "pricing", label: "interested in" },
+	{ from: "john", to: "demo", label: "requested" },
+	{ from: "demo", to: "workflow", label: "about" },
+	{ from: "pricing", to: "workflow", label: "includes" },
+];
+
+// Agents for filter
+const agents = ["Sales-LV", "Sales-EN", "Support-EN", "Support-RU", "Data-Collector"];
+const memoryTypes = ["conversation", "fact", "faq", "entity"];
+
+// Selected memory for detail view
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
+let selectedMemory: (typeof memoryEntries)[0] | null = null;
+
+function formatDate(dateStr: string): string {
+	const date = new Date(dateStr);
+	return date.toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function getTypeColor(type: string): string {
+	const colors: Record<string, string> = {
+		conversation: "gc-accent-blue",
+		fact: "gc-accent-emerald",
+		faq: "gc-accent-violet",
+		entity: "gc-accent-amber",
+		event: "gc-accent-cyan",
+		topic: "gc-text-secondary",
+		person: "gc-accent-rose",
 	};
+	return colors[type] || "gc-text-secondary";
+}
 
-	// Sample memory entries
-	const memoryEntries = [
-		{
-			id: '1',
-			type: 'conversation',
-			content: 'Customer "TechCo" asked about pricing for enterprise plan',
-			agent: 'Sales-LV',
-			confidence: 0.94,
-			timestamp: '2026-03-04T14:23:00Z',
-			usageCount: 3
-		},
-		{
-			id: '2',
-			type: 'fact',
-			content: 'TechCo budget is €50K/year for AI tools',
-			agent: 'Sales-LV',
-			confidence: 0.89,
-			timestamp: '2026-03-03T10:15:00Z',
-			source: 'conversation #892',
-			usageCount: 12
-		},
-		{
-			id: '3',
-			type: 'faq',
-			content: 'How to reset password → Navigate to Settings > Security > Reset Password',
-			agent: 'Support-EN',
-			confidence: 0.97,
-			timestamp: '2026-03-03T09:00:00Z',
-			usageCount: 47
-		},
-		{
-			id: '4',
-			type: 'entity',
-			content: 'Contact: John Smith (john@techco.com) - CTO at TechCo',
-			agent: 'Sales-LV',
-			confidence: 0.92,
-			timestamp: '2026-03-02T16:45:00Z',
-			usageCount: 8
-		},
-		{
-			id: '5',
-			type: 'conversation',
-			content: 'User requested demo of workflow automation features',
-			agent: 'Sales-EN',
-			confidence: 0.88,
-			timestamp: '2026-03-02T11:30:00Z',
-			usageCount: 1
-		}
-	];
+function getTypeIcon(type: string): string {
+	const icons: Record<string, string> = {
+		conversation: "💬",
+		fact: "📌",
+		faq: "❓",
+		entity: "🏢",
+		event: "📅",
+		topic: "🏷️",
+		person: "👤",
+	};
+	return icons[type] || "📝";
+}
 
-	// Graph nodes for visualization
-	const graphNodes = [
-		{ id: 'techco', label: 'TechCo', type: 'entity', x: 200, y: 150, size: 40 },
-		{ id: 'john', label: 'John Smith', type: 'person', x: 350, y: 100, size: 30 },
-		{ id: 'budget', label: '€50K Budget', type: 'fact', x: 150, y: 280, size: 25 },
-		{ id: 'pricing', label: 'Enterprise Pricing', type: 'topic', x: 320, y: 250, size: 35 },
-		{ id: 'demo', label: 'Demo Request', type: 'event', x: 450, y: 180, size: 28 },
-		{ id: 'workflow', label: 'Workflow Automation', type: 'topic', x: 500, y: 300, size: 32 }
-	];
+function filteredEntries() {
+	return memoryEntries.filter((entry) => {
+		const matchesSearch = searchQuery === "" || entry.content.toLowerCase().includes(searchQuery.toLowerCase());
+		const matchesAgent = selectedAgent === "all" || entry.agent === selectedAgent;
+		const matchesType = selectedType === "all" || entry.type === selectedType;
+		return matchesSearch && matchesAgent && matchesType;
+	});
+}
 
-	const graphEdges = [
-		{ from: 'techco', to: 'john', label: 'CTO' },
-		{ from: 'techco', to: 'budget', label: 'has' },
-		{ from: 'techco', to: 'pricing', label: 'interested in' },
-		{ from: 'john', to: 'demo', label: 'requested' },
-		{ from: 'demo', to: 'workflow', label: 'about' },
-		{ from: 'pricing', to: 'workflow', label: 'includes' }
-	];
-
-	// Agents for filter
-	const agents = ['Sales-LV', 'Sales-EN', 'Support-EN', 'Support-RU', 'Data-Collector'];
-	const memoryTypes = ['conversation', 'fact', 'faq', 'entity'];
-
-	// Selected memory for detail view
-	let selectedMemory: (typeof memoryEntries)[0] | null = null;
-
-	function formatDate(dateStr: string): string {
-		const date = new Date(dateStr);
-		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-	}
-
-	function getTypeColor(type: string): string {
-		const colors: Record<string, string> = {
-			conversation: 'gc-accent-blue',
-			fact: 'gc-accent-emerald',
-			faq: 'gc-accent-violet',
-			entity: 'gc-accent-amber',
-			event: 'gc-accent-cyan',
-			topic: 'gc-text-secondary',
-			person: 'gc-accent-rose'
-		};
-		return colors[type] || 'gc-text-secondary';
-	}
-
-	function getTypeIcon(type: string): string {
-		const icons: Record<string, string> = {
-			conversation: '💬',
-			fact: '📌',
-			faq: '❓',
-			entity: '🏢',
-			event: '📅',
-			topic: '🏷️',
-			person: '👤'
-		};
-		return icons[type] || '📝';
-	}
-
-	function filteredEntries() {
-		return memoryEntries.filter(entry => {
-			const matchesSearch = searchQuery === '' ||
-				entry.content.toLowerCase().includes(searchQuery.toLowerCase());
-			const matchesAgent = selectedAgent === 'all' || entry.agent === selectedAgent;
-			const matchesType = selectedType === 'all' || entry.type === selectedType;
-			return matchesSearch && matchesAgent && matchesType;
-		});
-	}
-
-	// Graph interaction
-	let hoveredNode: string | null = null;
+// Graph interaction
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
+let hoveredNode: string | null = null;
 </script>
 
 <div class="p-6 space-y-6">

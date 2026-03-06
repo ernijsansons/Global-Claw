@@ -60,11 +60,13 @@ memory.get("/tenants/:tenantId/memory", async (c) => {
 	searchParams.set("offset", String(offset));
 
 	try {
+		// DO route is /memory, not /memory/search
 		const response = await stub.fetch(
-			new Request(`https://do/memory/search?${searchParams.toString()}`, {
+			new Request(`https://do/memory?${searchParams.toString()}`, {
 				method: "GET",
 				headers: {
 					"X-Tenant-ID": tenantId,
+					"X-DO-Auth": c.env.JWT_SECRET,
 					Authorization: c.req.header("Authorization") ?? "",
 				},
 			}),
@@ -147,6 +149,7 @@ memory.post("/tenants/:tenantId/memory", requireRole("owner", "admin", "member")
 				method: "POST",
 				headers: {
 					"X-Tenant-ID": tenantId,
+					"X-DO-Auth": c.env.JWT_SECRET,
 					"Content-Type": "application/json",
 					Authorization: c.req.header("Authorization") ?? "",
 				},
@@ -204,6 +207,7 @@ memory.delete("/tenants/:tenantId/memory/:id", requireRole("owner", "admin"), as
 				method: "DELETE",
 				headers: {
 					"X-Tenant-ID": tenantId,
+					"X-DO-Auth": c.env.JWT_SECRET,
 					Authorization: c.req.header("Authorization") ?? "",
 				},
 			}),
@@ -254,6 +258,7 @@ memory.get("/tenants/:tenantId/memory/stats", async (c) => {
 				method: "GET",
 				headers: {
 					"X-Tenant-ID": tenantId,
+					"X-DO-Auth": c.env.JWT_SECRET,
 					Authorization: c.req.header("Authorization") ?? "",
 				},
 			}),

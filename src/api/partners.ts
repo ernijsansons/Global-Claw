@@ -148,63 +148,75 @@ partners.get("/:id", requireRole("owner", "admin"), async (c) => {
 // ============================================================================
 
 interface CreatePartnerBody {
-	name: string;
-	email: string;
+	user_id: string; // Required - links to existing user
 	tier?: "affiliate" | "partner" | "premium" | "master";
 	referral_code?: string;
 	company_name?: string;
-	website?: string;
+	commission_rate?: number;
 }
 
 partners.post("/", requireRole("owner"), async (c) => {
 	const body = await c.req.json<CreatePartnerBody>();
 
 	// Validate required fields
-	if (!body.name || !body.email) {
+	if (!body.user_id) {
 		return c.json(
 			{
 				success: false,
-				error: { code: "VALIDATION_ERROR", message: "name and email are required" },
+				error: { code: "VALIDATION_ERROR", message: "user_id is required" },
 			},
 			400,
 		);
 	}
 
-	// Check if email already exists
-	const existing = await c.env.DB.prepare("SELECT id FROM partners WHERE email = ?")
-		.bind(body.email.toLowerCase())
-		.first();
+	// Verify user exists
+	const user = await c.env.DB.prepare("SELECT id, name, email FROM users WHERE id = ?")
+		.bind(body.user_id)
+		.first<{ id: string; name: string | null; email: string }>();
+
+	if (!user) {
+		return c.json(
+			{
+				success: false,
+				error: { code: "NOT_FOUND", message: "User not found" },
+			},
+			404,
+		);
+	}
+
+	// Check if this user is already a partner
+	const existing = await c.env.DB.prepare("SELECT id FROM partners WHERE user_id = ?").bind(body.user_id).first();
 
 	if (existing) {
 		return c.json(
 			{
 				success: false,
-				error: { code: "DUPLICATE", message: "Partner with this email already exists" },
+				error: { code: "DUPLICATE", message: "User is already a partner" },
 			},
 			409,
 		);
 	}
 
 	// Generate referral code if not provided
+	const baseName = user.name ?? user.email.split("@")[0] ?? "partner";
 	const referralCode =
 		body.referral_code ??
-		`${body.name.toUpperCase().slice(0, 5)}-${crypto.randomUUID().slice(0, 4)}`.replace(/[^A-Z0-9-]/g, "");
+		`${baseName.toUpperCase().slice(0, 5)}-${crypto.randomUUID().slice(0, 4)}`.replace(/[^A-Z0-9-]/g, "");
 
 	const id = crypto.randomUUID();
 
 	await c.env.DB.prepare(
 		`INSERT INTO partners (
-			id, name, email, tier, referral_code, company_name, website, status, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', datetime('now'))`,
+			id, user_id, tier, referral_code, company_name, commission_rate, status, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, 'active', datetime('now'), datetime('now'))`,
 	)
 		.bind(
 			id,
-			body.name,
-			body.email.toLowerCase(),
+			body.user_id,
 			body.tier ?? "affiliate",
 			referralCode,
 			body.company_name ?? null,
-			body.website ?? null,
+			body.commission_rate ?? 0.3, // Default 30%
 		)
 		.run();
 
@@ -224,11 +236,10 @@ partners.post("/", requireRole("owner"), async (c) => {
 // ============================================================================
 
 interface UpdatePartnerBody {
-	name?: string;
 	tier?: "affiliate" | "partner" | "premium" | "master";
 	status?: "active" | "suspended" | "inactive";
 	company_name?: string;
-	website?: string;
+	commission_rate?: number;
 }
 
 partners.patch("/:id", requireRole("owner"), async (c) => {
@@ -251,10 +262,6 @@ partners.patch("/:id", requireRole("owner"), async (c) => {
 	const updates: string[] = [];
 	const params: unknown[] = [];
 
-	if (body.name !== undefined) {
-		updates.push("name = ?");
-		params.push(body.name);
-	}
 	if (body.tier !== undefined) {
 		updates.push("tier = ?");
 		params.push(body.tier);
@@ -267,9 +274,9 @@ partners.patch("/:id", requireRole("owner"), async (c) => {
 		updates.push("company_name = ?");
 		params.push(body.company_name);
 	}
-	if (body.website !== undefined) {
-		updates.push("website = ?");
-		params.push(body.website);
+	if (body.commission_rate !== undefined) {
+		updates.push("commission_rate = ?");
+		params.push(body.commission_rate);
 	}
 
 	if (updates.length === 0) {
@@ -419,7 +426,7 @@ partners.post("/:id/tenants", requireRole("owner"), async (c) => {
 
 	// Create assignment
 	await c.env.DB.prepare(
-		"INSERT INTO tenant_partners (tenant_id, partner_id, created_at) VALUES (?, ?, datetime('now'))",
+		"INSERT INTO tenant_partners (tenant_id, partner_id, referred_at) VALUES (?, ?, datetime('now'))",
 	)
 		.bind(body.tenant_id, partnerId)
 		.run();

@@ -61,7 +61,7 @@ interface OverviewMetrics {
  * Get dashboard overview metrics
  */
 overview.get("/overview", async (c) => {
-	const tenantId = c.get("tenantId");
+	const tenantId = c.get("tenant")?.tenant_id;
 
 	if (!tenantId) {
 		return c.json(
@@ -83,10 +83,10 @@ overview.get("/overview", async (c) => {
 
 	// Get messages today from usage_daily
 	const today = new Date().toISOString().split("T")[0];
-	const usageResult = await c.env.DB.prepare("SELECT messages FROM usage_daily WHERE tenant_id = ? AND day = ?")
+	const usageResult = await c.env.DB.prepare("SELECT messages_sent FROM usage_daily WHERE tenant_id = ? AND day = ?")
 		.bind(tenantId, today)
-		.first<{ messages: number }>();
-	const messagesToday = usageResult?.messages ?? 0;
+		.first<{ messages_sent: number }>();
+	const messagesToday = usageResult?.messages_sent ?? 0;
 
 	// Get hourly message counts for sparkline (last 24 hours from audit log)
 	const sparkline: number[] = [];
@@ -97,28 +97,28 @@ overview.get("/overview", async (c) => {
 		sparkline.push(baseCount + variance);
 	}
 
-	// Calculate LLM cost (last 24h)
+	// Calculate LLM cost (last 24h) - cost_cents is in cents, convert to USD
 	const costResult = await c.env.DB.prepare(
-		`SELECT SUM(cost_usd) as total FROM llm_usage_log
-		 WHERE tenant_id = ? AND timestamp > datetime('now', '-1 day')`,
+		`SELECT SUM(cost_cents) as total FROM llm_usage_log
+		 WHERE tenant_id = ? AND created_at > datetime('now', '-1 day')`,
 	)
 		.bind(tenantId)
 		.first<{ total: number }>();
-	const llmCost24h = costResult?.total ?? 0;
+	const llmCost24h = (costResult?.total ?? 0) / 100; // Convert cents to USD
 
 	// Previous 24h cost for comparison
 	const prevCostResult = await c.env.DB.prepare(
-		`SELECT SUM(cost_usd) as total FROM llm_usage_log
-		 WHERE tenant_id = ? AND timestamp > datetime('now', '-2 day') AND timestamp <= datetime('now', '-1 day')`,
+		`SELECT SUM(cost_cents) as total FROM llm_usage_log
+		 WHERE tenant_id = ? AND created_at > datetime('now', '-2 day') AND created_at <= datetime('now', '-1 day')`,
 	)
 		.bind(tenantId)
 		.first<{ total: number }>();
-	const prevLlmCost = prevCostResult?.total ?? llmCost24h;
+	const prevLlmCost = (prevCostResult?.total ?? costResult?.total ?? 0) / 100; // Convert cents to USD
 	const costChangePct = prevLlmCost > 0 ? ((llmCost24h - prevLlmCost) / prevLlmCost) * 100 : 0;
 
 	// Get agent fleet health
 	const agents = await c.env.DB.prepare(
-		`SELECT id, name, status, total_messages, llm_provider_slug FROM agents
+		`SELECT id, name, status, total_messages, primary_model FROM agents
 		 WHERE tenant_id = ? ORDER BY total_messages DESC LIMIT 20`,
 	)
 		.bind(tenantId)
@@ -127,7 +127,7 @@ overview.get("/overview", async (c) => {
 			name: string;
 			status: string;
 			total_messages: number;
-			llm_provider_slug: string;
+			primary_model: string;
 		}>();
 
 	const agentFleetHealth = (agents.results ?? []).map((a) => ({
@@ -138,7 +138,7 @@ overview.get("/overview", async (c) => {
 			| "idle"
 			| "error",
 		messages_hr: Math.floor(a.total_messages / 24), // Simplified
-		llm_provider: a.llm_provider_slug ?? "default",
+		llm_provider: a.primary_model ?? "default",
 	}));
 
 	// Get active workflows (from workflow_runs table)
@@ -162,18 +162,18 @@ overview.get("/overview", async (c) => {
 
 	// Get recent activity from audit log
 	const auditLogs = await c.env.DB.prepare(
-		`SELECT action, details_json, timestamp FROM audit_log
-		 WHERE tenant_id = ? ORDER BY timestamp DESC LIMIT 10`,
+		`SELECT action, details_json, created_at FROM audit_log
+		 WHERE tenant_id = ? ORDER BY created_at DESC LIMIT 10`,
 	)
 		.bind(tenantId)
-		.all<{ action: string; details_json: string; timestamp: string }>();
+		.all<{ action: string; details_json: string; created_at: string }>();
 
 	const recentActivity = (auditLogs.results ?? []).map((log) => {
 		const details = JSON.parse(log.details_json ?? "{}") as { agent_name?: string };
 		return {
 			type: log.action.split(".")[0] ?? "activity",
 			description: formatActivityDescription(log.action, details),
-			timestamp: log.timestamp,
+			timestamp: log.created_at,
 			agent_name: details.agent_name,
 		};
 	});

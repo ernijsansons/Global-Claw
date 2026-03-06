@@ -500,6 +500,18 @@ export class TenantAgent implements DurableObject {
 				return this.handleSearchMemory(url.searchParams);
 			}
 
+			if (path === "/memory/stats" && request.method === "GET") {
+				return this.handleMemoryStats();
+			}
+
+			if (path.startsWith("/memory/") && request.method === "DELETE") {
+				const memoryId = path.split("/")[2];
+				if (!memoryId) {
+					return this.errorResponse("VALIDATION_ERROR", "Memory ID required", 400);
+				}
+				return this.handleDeleteMemory(memoryId);
+			}
+
 			// Message endpoints
 			if (path === "/message" && request.method === "POST") {
 				return this.handleMessage(request, auth);
@@ -1096,6 +1108,60 @@ export class TenantAgent implements DurableObject {
 		);
 
 		return this.successResponse({ id });
+	}
+
+	/**
+	 * Delete memory fact by ID
+	 */
+	private handleDeleteMemory(memoryId: string): Response {
+		// Check if memory exists
+		const existing = this.sql.exec<{ id: string }>("SELECT id FROM memory_facts WHERE id = ?", [memoryId]).toArray()[0];
+
+		if (!existing) {
+			return this.errorResponse("NOT_FOUND", "Memory entry not found", 404);
+		}
+
+		// Delete the memory fact
+		this.sql.exec("DELETE FROM memory_facts WHERE id = ?", [memoryId]);
+
+		return this.successResponse({ deleted: true, id: memoryId });
+	}
+
+	/**
+	 * Get memory statistics
+	 */
+	private handleMemoryStats(): Response {
+		// Count by type
+		const conversationCount =
+			this.sql
+				.exec<{ count: number }>("SELECT COUNT(*) as count FROM memory_facts WHERE type = 'conversation'")
+				.toArray()[0]?.count ?? 0;
+
+		const factCount =
+			this.sql
+				.exec<{ count: number }>(
+					"SELECT COUNT(*) as count FROM memory_facts WHERE type NOT IN ('conversation', 'embedding')",
+				)
+				.toArray()[0]?.count ?? 0;
+
+		const embeddingCount =
+			this.sql
+				.exec<{ count: number }>("SELECT COUNT(*) as count FROM memory_facts WHERE type = 'embedding'")
+				.toArray()[0]?.count ?? 0;
+
+		// Calculate total size (approximate based on content length)
+		const totalSizeResult = this.sql
+			.exec<{ total_size: number }>("SELECT SUM(LENGTH(content)) as total_size FROM memory_facts")
+			.toArray()[0];
+
+		const totalSizeBytes = totalSizeResult?.total_size ?? 0;
+
+		return this.successResponse({
+			conversation_count: conversationCount,
+			fact_count: factCount,
+			embedding_count: embeddingCount,
+			total_size_bytes: totalSizeBytes,
+		});
 	}
 
 	/**

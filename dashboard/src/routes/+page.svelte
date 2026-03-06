@@ -1,73 +1,77 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { api } from "$lib/api";
-	import { tenantId } from "$lib/stores";
+import { api } from "$lib/api";
+import { tenantId } from "$lib/stores";
+import { onMount } from "svelte";
 
-	// Demo data for when not authenticated
-	const demoMetrics = {
-		active_agents: { count: 12, change_pct: 8 },
-		messages_today: {
-			count: 847,
-			sparkline: [10, 20, 30, 45, 60, 80, 90, 85, 70, 60, 50, 40],
-		},
-		uptime: { pct: 99.7, days: 30 },
-		llm_cost_24h: { amount_usd: 23.4, change_pct: -12 },
-		agent_fleet_health: [
-			{ id: "1", name: "Sales-LV", status: "online" as const, messages_hr: 42, llm_provider: "anthropic" },
-			{ id: "2", name: "Support-EN", status: "online" as const, messages_hr: 28, llm_provider: "qwen" },
-			{ id: "3", name: "Lead-Qualify", status: "idle" as const, messages_hr: 5, llm_provider: "openai" },
-			{ id: "4", name: "Data-Analyst", status: "error" as const, messages_hr: 0, llm_provider: "anthropic" },
-		],
-		active_workflows: [
-			{ id: "1", name: "Onboarding Flow", status: "running" as const, last_run: "2 min ago" },
-			{ id: "2", name: "Support Triage", status: "running" as const, last_run: "5 min ago" },
-			{ id: "3", name: "Data Sync", status: "paused" as const, last_run: "1 hour ago" },
-		],
-		recent_activity: [
-			{ type: "agent", description: "Agent 'Sales-LV' handled 23 tickets", timestamp: "2m ago" },
-			{ type: "workflow", description: "Workflow 'Onboard' completed run #847", timestamp: "5m ago" },
-			{ type: "integration", description: "Google Calendar connected", timestamp: "1h ago" },
-		],
-	};
+// Linter: tenantId store is used via $tenantId reactive subscription below
+void tenantId;
 
-	type OverviewData = typeof demoMetrics;
-	let metrics: OverviewData = demoMetrics;
-	let loading = true;
-	let error: string | null = null;
+// Demo data for when not authenticated
+const demoMetrics = {
+	active_agents: { count: 12, change_pct: 8 },
+	messages_today: {
+		count: 847,
+		sparkline: [10, 20, 30, 45, 60, 80, 90, 85, 70, 60, 50, 40],
+	},
+	uptime: { pct: 99.7, days: 30 },
+	llm_cost_24h: { amount_usd: 23.4, change_pct: -12 },
+	agent_fleet_health: [
+		{ id: "1", name: "Sales-LV", status: "online" as const, messages_hr: 42, llm_provider: "anthropic" },
+		{ id: "2", name: "Support-EN", status: "online" as const, messages_hr: 28, llm_provider: "qwen" },
+		{ id: "3", name: "Lead-Qualify", status: "idle" as const, messages_hr: 5, llm_provider: "openai" },
+		{ id: "4", name: "Data-Analyst", status: "error" as const, messages_hr: 0, llm_provider: "anthropic" },
+	],
+	active_workflows: [
+		{ id: "1", name: "Onboarding Flow", status: "running" as const, last_run: "2 min ago" },
+		{ id: "2", name: "Support Triage", status: "running" as const, last_run: "5 min ago" },
+		{ id: "3", name: "Data Sync", status: "paused" as const, last_run: "1 hour ago" },
+	],
+	recent_activity: [
+		{ type: "agent", description: "Agent 'Sales-LV' handled 23 tickets", timestamp: "2m ago" },
+		{ type: "workflow", description: "Workflow 'Onboard' completed run #847", timestamp: "5m ago" },
+		{ type: "integration", description: "Google Calendar connected", timestamp: "1h ago" },
+	],
+};
 
-	onMount(async () => {
-		if ($tenantId) {
-			try {
-				const response = await api.getOverview($tenantId);
-				if (response.success && response.data) {
-					metrics = response.data as OverviewData;
-				}
-			} catch (e) {
-				error = "Failed to load dashboard data";
+type OverviewData = typeof demoMetrics;
+let metrics: OverviewData = demoMetrics;
+let loading = true;
+let error: string | null = null;
+
+onMount(async () => {
+	if ($tenantId) {
+		try {
+			// Tenant context comes from JWT auth header, not explicit parameter
+			const response = await api.getOverview();
+			if (response.success && response.data) {
+				metrics = response.data as OverviewData;
 			}
-		}
-		loading = false;
-	});
-
-	function getGreeting() {
-		const hour = new Date().getHours();
-		if (hour < 12) return "Good morning";
-		if (hour < 17) return "Good afternoon";
-		return "Good evening";
-	}
-
-	function getStatusClass(status: string) {
-		switch (status) {
-			case "online":
-			case "running":
-				return "gc-status-online";
-			case "idle":
-			case "paused":
-				return "gc-status-idle";
-			default:
-				return "gc-status-error";
+		} catch {
+			error = "Failed to load dashboard data";
 		}
 	}
+	loading = false;
+});
+
+function getGreeting() {
+	const hour = new Date().getHours();
+	if (hour < 12) return "Good morning";
+	if (hour < 17) return "Good afternoon";
+	return "Good evening";
+}
+
+function getStatusClass(status: string) {
+	switch (status) {
+		case "online":
+		case "running":
+			return "gc-status-online";
+		case "idle":
+		case "paused":
+			return "gc-status-idle";
+		default:
+			return "gc-status-error";
+	}
+}
 </script>
 
 <svelte:head>
