@@ -151,24 +151,23 @@ Before the production API is externally accessible:
 
 | Blocker | Status | Verified |
 |---------|--------|----------|
-| Production Secrets | 0 of 5 configured | 2026-03-06T17:10:00-06:00 |
-| DNS for api.global-claw.com | NXDOMAIN | 2026-03-06T17:12:00-06:00 |
-| DNS for app.global-claw.com | NXDOMAIN | 2026-03-06T17:12:00-06:00 |
-| API Health Check | Cannot test (DNS) | 2026-03-06T17:12:00-06:00 |
+| Production Secrets | 5 of 5 configured | 2026-03-06T17:45:00-06:00 |
+| DNS for api.global-claw.com | NXDOMAIN | 2026-03-06T17:45:00-06:00 |
+| DNS for app.global-claw.com | NXDOMAIN | 2026-03-06T17:45:00-06:00 |
+| API Health Check | Cannot test (DNS) | 2026-03-06T17:45:00-06:00 |
 
 ### Secrets Verification
 
 **Command:** `npx wrangler secret list --env production`
-**Result:** `[]` (empty array - no secrets set)
+**Result:** All 5 secrets configured
 
-**Required secrets to set:**
-```bash
-npx wrangler secret put JWT_SECRET --env production
-npx wrangler secret put ENCRYPTION_KEY --env production
-npx wrangler secret put STRIPE_SECRET_KEY --env production
-npx wrangler secret put STRIPE_WEBHOOK_SECRET --env production
-npx wrangler secret put TELEGRAM_WEBHOOK_SECRET --env production
-```
+| Secret | Status |
+|--------|--------|
+| JWT_SECRET | ✓ SET |
+| ENCRYPTION_KEY | ✓ SET |
+| STRIPE_SECRET_KEY | ✓ SET |
+| STRIPE_WEBHOOK_SECRET | ✓ SET |
+| TELEGRAM_WEBHOOK_SECRET | ✓ SET |
 
 ### DNS Verification
 
