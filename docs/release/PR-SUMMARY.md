@@ -29,14 +29,20 @@ This PR completes pre-production hardening for Global-Claw v1.0.0, addressing se
 - **chore:** Make lint non-mutating (biome check vs biome check --write)
 - **chore:** Add .playwright-mcp/ to .gitignore
 
+### Lint & A11y Fixes
+- **fix(lint):** Resolve all Biome lint errors across dashboard (17 files)
+- **fix(biome):** Update config to handle Svelte store/reactive variable false positives
+- **fix(a11y):** Add label associations and ARIA attributes for modal accessibility
+
 ## Quality Gates
 
 | Gate | Status |
 |------|--------|
-| `npm run lint` | **PASS** (14 complexity warnings, 0 errors) |
+| `npm run lint` | **PASS** (16 complexity warnings, 0 errors) |
 | `npm run typecheck` | **PASS** |
-| `npm run test` | **PASS** (97/97 tests) |
+| `npm run test` | **PASS** (100/100 tests) |
 | `npm run verify:contracts` | **PASS** |
+| `dashboard check` | **PASS** (0 errors, 31 A11y warnings) |
 
 ## Staging Verification
 
@@ -50,9 +56,11 @@ This PR completes pre-production hardening for Global-Claw v1.0.0, addressing se
 
 **Staging URL:** https://global-claw-staging.ernijs-ansons.workers.dev
 
-## Commits (10)
+## Commits (12)
 
 ```
+4ff0335 fix(lint): resolve all Biome lint errors across dashboard
+c867008 fix(review): restore dashboard runtime state and harden Stripe signature checks
 8e5d45e chore(format): fix wrangler.jsonc formatting
 fb9dd15 fix(config): address audit findings for production readiness
 c44c9c8 fix(lint): remove unused type imports from index.ts
@@ -60,7 +68,6 @@ c44c9c8 fix(lint): remove unused type imports from index.ts
 255ae84 fix(health): move health endpoint before auth-protected routes
 0246be9 fix(rate-limit): increase KV TTL minimum to 60 seconds
 ceaf77e test(security): add unit tests for crypto and stripe signature
-e88085e fix(dashboard): auto-fix biome formatting issues
 84b7c38 fix(api): align API handlers with D1 schema
 caca298 fix(tests): align test schema with production migrations
 ```
@@ -81,7 +88,11 @@ caca298 fix(tests): align test schema with production migrations
 - `src/middleware/rate-limit.ts` - KV TTL fix
 - `wrangler.jsonc` - Env-scoped bindings
 - `.gitignore` - Playwright logs exclusion
-- `biome.json` - Svelte override
+- `biome.json` - Svelte override + lint rules
+- `dashboard/src/app.css` - Formatting fix
+- `dashboard/src/lib/api.ts` - API client improvements
+- `dashboard/src/lib/stores/auth.ts` - Import order
+- `dashboard/src/routes/*.svelte` - Lint + A11y fixes (12 pages)
 
 ## Production Deploy (Manual)
 
@@ -101,7 +112,7 @@ See `docs/release/production-runbook.md` for complete procedures.
 - [x] Staging deployed and verified
 - [x] Release documentation complete
 - [x] No new features (hardening only)
-- [ ] Remote configured and branch pushed
-- [ ] PR created
+- [x] Remote configured and branch pushed
+- [x] PR created (#1)
 - [ ] Code review approved
 - [ ] Merge to main
