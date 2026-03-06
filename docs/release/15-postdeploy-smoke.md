@@ -1,7 +1,49 @@
 # Post-Deploy Smoke Test Results
 
 **Date:** 2026-03-06
+**Last Updated:** 2026-03-06T17:15:00-06:00
 **Tester:** Claude Opus 4.5
+
+## Critical Blockers
+
+| Blocker | Status | Action Required |
+|---------|--------|-----------------|
+| Production Secrets | NOT SET | Run `npx wrangler secret put <NAME> --env production` for all 5 secrets |
+| DNS Configuration | NOT CONFIGURED | Add zone and configure A/AAAA records |
+| Custom Domains | NOT ACCESSIBLE | DNS must resolve first |
+
+## Secrets Verification (2026-03-06T17:10:00-06:00)
+
+**Command:** `npx wrangler secret list --env production`
+**Result:** `[]` (empty array)
+
+| Secret | Required | Status |
+|--------|----------|--------|
+| JWT_SECRET | YES | NOT SET |
+| ENCRYPTION_KEY | YES | NOT SET |
+| STRIPE_SECRET_KEY | YES | NOT SET |
+| STRIPE_WEBHOOK_SECRET | YES | NOT SET |
+| TELEGRAM_WEBHOOK_SECRET | YES | NOT SET |
+
+## DNS Verification (2026-03-06T17:12:00-06:00)
+
+**Commands:**
+```
+nslookup api.global-claw.com
+→ Non-existent domain
+
+nslookup app.global-claw.com
+→ Non-existent domain
+
+nslookup global-claw.com
+→ Name exists but no A/AAAA records
+```
+
+| Domain | DNS Status | HTTP Status |
+|--------|------------|-------------|
+| global-claw.com | Exists (no records) | N/A |
+| api.global-claw.com | NXDOMAIN | ENOTFOUND |
+| app.global-claw.com | NXDOMAIN | ENOTFOUND |
 
 ## Test Environment
 

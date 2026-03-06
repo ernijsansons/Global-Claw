@@ -1,9 +1,11 @@
 # Rollback Readiness
 
 **Date:** 2026-03-06
+**Last Updated:** 2026-03-06T17:15:00-06:00
 **Deployment:** Production v1.0.0
 **Worker Version:** `fe075694-7f5a-4baf-88d2-a6376ca5a134`
 **Pages Deployment:** `978dbdae`
+**Release Status:** BLOCKED (secrets + DNS pending)
 
 ## Rollback Triggers
 

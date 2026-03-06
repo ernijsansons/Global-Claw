@@ -147,13 +147,62 @@ Before the production API is externally accessible:
 
 ---
 
+## Blockers (Must Resolve Before SUCCESS)
+
+| Blocker | Status | Verified |
+|---------|--------|----------|
+| Production Secrets | 0 of 5 configured | 2026-03-06T17:10:00-06:00 |
+| DNS for api.global-claw.com | NXDOMAIN | 2026-03-06T17:12:00-06:00 |
+| DNS for app.global-claw.com | NXDOMAIN | 2026-03-06T17:12:00-06:00 |
+| API Health Check | Cannot test (DNS) | 2026-03-06T17:12:00-06:00 |
+
+### Secrets Verification
+
+**Command:** `npx wrangler secret list --env production`
+**Result:** `[]` (empty array - no secrets set)
+
+**Required secrets to set:**
+```bash
+npx wrangler secret put JWT_SECRET --env production
+npx wrangler secret put ENCRYPTION_KEY --env production
+npx wrangler secret put STRIPE_SECRET_KEY --env production
+npx wrangler secret put STRIPE_WEBHOOK_SECRET --env production
+npx wrangler secret put TELEGRAM_WEBHOOK_SECRET --env production
+```
+
+### DNS Verification
+
+```
+$ nslookup api.global-claw.com
+→ Non-existent domain
+
+$ nslookup app.global-claw.com
+→ Non-existent domain
+```
+
+### Next Manual Actions
+
+1. Configure DNS zone `global-claw.com` in Cloudflare
+2. Add A/AAAA records for api and app subdomains
+3. Set all 5 production secrets
+4. Configure custom domain in Pages dashboard
+5. Re-run smoke tests:
+   ```bash
+   curl -i https://api.global-claw.com/api/health
+   curl -i https://app.global-claw.com
+   curl -i https://api.global-claw.com/api/tenants
+   ```
+
+---
+
 ## Sign-Off
 
 | Role | Status | Timestamp |
 |------|--------|-----------|
-| Release Manager | Complete | 2026-03-06 |
+| Release Manager | Blocked | 2026-03-06T17:15:00-06:00 |
 | User Approval | Received | PROCEED_PRODUCTION_DEPLOY |
+| Infrastructure Ready | NO | Secrets + DNS pending |
 
 ---
 
-RELEASE STATUS: SUCCESS
+RELEASE STATUS: BLOCKED
