@@ -1,113 +1,113 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { api } from "$lib/api";
-	import { tenantId } from "$lib/stores";
+import { api } from "$lib/api";
+import { tenantId } from "$lib/stores";
+import { onMount } from "svelte";
 
-	// Demo data for when not authenticated
-	const demoAgents = [
-		{
-			id: "1",
-			name: "Sales Assistant LV",
-			status: "online" as const,
-			llm_provider_slug: "anthropic",
-			llm_model: "claude-sonnet-4",
-			total_messages: 2847,
-			messages_today: 247,
-			languages: ["LV", "RU"],
-			created_at: "2026-01-15T10:00:00Z",
-		},
-		{
-			id: "2",
-			name: "Support Bot EN",
-			status: "online" as const,
-			llm_provider_slug: "qwen",
-			llm_model: "qwen-2.5-72b",
-			total_messages: 1523,
-			messages_today: 89,
-			languages: ["EN"],
-			created_at: "2026-02-01T14:30:00Z",
-		},
-		{
-			id: "3",
-			name: "Data Analyst",
-			status: "idle" as const,
-			llm_provider_slug: "openai",
-			llm_model: "gpt-4o",
-			total_messages: 456,
-			messages_today: 0,
-			languages: ["EN", "DE"],
-			created_at: "2026-02-20T09:15:00Z",
-		},
-		{
-			id: "4",
-			name: "Lead Qualifier",
-			status: "error" as const,
-			llm_provider_slug: "anthropic",
-			llm_model: "claude-haiku-4",
-			total_messages: 892,
-			messages_today: 0,
-			languages: ["LV", "RU", "EN"],
-			created_at: "2026-03-01T16:45:00Z",
-		},
-	];
+// Demo data for when not authenticated
+const demoAgents = [
+	{
+		id: "1",
+		name: "Sales Assistant LV",
+		status: "online" as const,
+		llm_provider_slug: "anthropic",
+		llm_model: "claude-sonnet-4",
+		total_messages: 2847,
+		messages_today: 247,
+		languages: ["LV", "RU"],
+		created_at: "2026-01-15T10:00:00Z",
+	},
+	{
+		id: "2",
+		name: "Support Bot EN",
+		status: "online" as const,
+		llm_provider_slug: "qwen",
+		llm_model: "qwen-2.5-72b",
+		total_messages: 1523,
+		messages_today: 89,
+		languages: ["EN"],
+		created_at: "2026-02-01T14:30:00Z",
+	},
+	{
+		id: "3",
+		name: "Data Analyst",
+		status: "idle" as const,
+		llm_provider_slug: "openai",
+		llm_model: "gpt-4o",
+		total_messages: 456,
+		messages_today: 0,
+		languages: ["EN", "DE"],
+		created_at: "2026-02-20T09:15:00Z",
+	},
+	{
+		id: "4",
+		name: "Lead Qualifier",
+		status: "error" as const,
+		llm_provider_slug: "anthropic",
+		llm_model: "claude-haiku-4",
+		total_messages: 892,
+		messages_today: 0,
+		languages: ["LV", "RU", "EN"],
+		created_at: "2026-03-01T16:45:00Z",
+	},
+];
 
-	type Agent = (typeof demoAgents)[0];
-	let agents: Agent[] = demoAgents;
-	let loading = true;
-	let error: string | null = null;
-	let selectedAgent: Agent | null = null;
-	let searchQuery = "";
-	let statusFilter = "all";
+type Agent = (typeof demoAgents)[0];
+let agents: Agent[] = demoAgents;
+let loading = true;
+let error: string | null = null;
+let selectedAgent: Agent | null = null;
+let searchQuery = "";
+let statusFilter = "all";
 
-	onMount(async () => {
-		if ($tenantId) {
-			try {
-				const response = await api.getAgents($tenantId);
-				if (response.success && response.data) {
-					agents = response.data as Agent[];
-				}
-			} catch {
-				error = "Failed to load agents";
+onMount(async () => {
+	if ($tenantId) {
+		try {
+			const response = await api.getAgents($tenantId);
+			if (response.success && response.data) {
+				agents = response.data as Agent[];
 			}
+		} catch {
+			error = "Failed to load agents";
 		}
-		loading = false;
+	}
+	loading = false;
+});
+
+function getStatusClass(status: string) {
+	switch (status) {
+		case "online":
+			return "gc-status-online";
+		case "idle":
+			return "gc-status-idle";
+		default:
+			return "gc-status-error";
+	}
+}
+
+function getStatusLabel(status: string) {
+	switch (status) {
+		case "online":
+			return "Online";
+		case "idle":
+			return "Sleeping";
+		default:
+			return "Error";
+	}
+}
+
+function formatDate(dateStr: string) {
+	return new Date(dateStr).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
 	});
+}
 
-	function getStatusClass(status: string) {
-		switch (status) {
-			case "online":
-				return "gc-status-online";
-			case "idle":
-				return "gc-status-idle";
-			default:
-				return "gc-status-error";
-		}
-	}
-
-	function getStatusLabel(status: string) {
-		switch (status) {
-			case "online":
-				return "Online";
-			case "idle":
-				return "Sleeping";
-			default:
-				return "Error";
-		}
-	}
-
-	function formatDate(dateStr: string) {
-		return new Date(dateStr).toLocaleDateString("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		});
-	}
-
-	$: filteredAgents = agents.filter((agent) => {
-		const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase());
-		const matchesStatus = statusFilter === "all" || agent.status === statusFilter;
-		return matchesSearch && matchesStatus;
-	});
+$: filteredAgents = agents.filter((agent) => {
+	const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase());
+	const matchesStatus = statusFilter === "all" || agent.status === statusFilter;
+	return matchesSearch && matchesStatus;
+});
 </script>
 
 <svelte:head>
@@ -229,8 +229,8 @@
 					<h3 class="text-sm font-medium text-gc-text-secondary mb-3">Model Config</h3>
 					<div class="space-y-3">
 						<div>
-							<label class="block text-sm text-gc-text-secondary mb-1">Primary Model</label>
-							<select class="gc-input w-full">
+							<label for="primary-model" class="block text-sm text-gc-text-secondary mb-1">Primary Model</label>
+							<select id="primary-model" class="gc-input w-full">
 								<option selected={selectedAgent.llm_model === "claude-sonnet-4"}>
 									claude-sonnet-4
 								</option>
@@ -244,24 +244,25 @@
 							</select>
 						</div>
 						<div>
-							<label class="block text-sm text-gc-text-secondary mb-1">Fallback Model</label>
-							<select class="gc-input w-full">
+							<label for="fallback-model" class="block text-sm text-gc-text-secondary mb-1">Fallback Model</label>
+							<select id="fallback-model" class="gc-input w-full">
 								<option>qwen-2.5-72b</option>
 								<option>claude-haiku-4</option>
 								<option>gpt-4o-mini</option>
 							</select>
 						</div>
 						<div>
-							<label class="block text-sm text-gc-text-secondary mb-1">
+							<label for="temperature" class="block text-sm text-gc-text-secondary mb-1">
 								Temperature: 0.7
 							</label>
-							<input type="range" min="0" max="1" step="0.1" value="0.7" class="w-full" />
+							<input id="temperature" type="range" min="0" max="1" step="0.1" value="0.7" class="w-full" />
 						</div>
 						<div>
-							<label class="block text-sm text-gc-text-secondary mb-1">
+							<label for="max-tokens" class="block text-sm text-gc-text-secondary mb-1">
 								Max Tokens: 4096
 							</label>
 							<input
+								id="max-tokens"
 								type="range"
 								min="256"
 								max="8192"

@@ -1,196 +1,206 @@
 <script lang="ts">
-	// Search and filter
-	let searchQuery = '';
-	let filterStatus = 'all';
+// Search and filter
+let searchQuery = "";
+let filterStatus = "all";
 
-	// Connected integrations
-	const connectedIntegrations = [
-		{
-			id: '1',
-			name: 'Google Calendar',
-			icon: '📅',
-			status: 'connected',
-			connectedAt: '2026-02-15',
-			lastSync: '2026-03-05T10:30:00Z',
-			scopes: ['calendar.read', 'calendar.write', 'events.create']
-		},
-		{
-			id: '2',
-			name: 'Notion',
-			icon: '📝',
-			status: 'connected',
-			connectedAt: '2026-02-20',
-			lastSync: '2026-03-05T09:15:00Z',
-			scopes: ['read_content', 'update_content', 'create_pages']
-		},
-		{
-			id: '3',
-			name: 'Stripe',
-			icon: '💳',
-			status: 'connected',
-			connectedAt: '2026-01-10',
-			lastSync: '2026-03-05T11:00:00Z',
-			scopes: ['payments.read', 'customers.read', 'subscriptions.read']
-		},
-		{
-			id: '4',
-			name: 'Telegram',
-			icon: '✈️',
-			status: 'connected',
-			connectedAt: '2026-01-05',
-			lastSync: '2026-03-05T11:05:00Z',
-			scopes: ['bot.messages', 'bot.commands']
-		}
-	];
+// Connected integrations
+const connectedIntegrations = [
+	{
+		id: "1",
+		name: "Google Calendar",
+		icon: "📅",
+		status: "connected",
+		connectedAt: "2026-02-15",
+		lastSync: "2026-03-05T10:30:00Z",
+		scopes: ["calendar.read", "calendar.write", "events.create"],
+	},
+	{
+		id: "2",
+		name: "Notion",
+		icon: "📝",
+		status: "connected",
+		connectedAt: "2026-02-20",
+		lastSync: "2026-03-05T09:15:00Z",
+		scopes: ["read_content", "update_content", "create_pages"],
+	},
+	{
+		id: "3",
+		name: "Stripe",
+		icon: "💳",
+		status: "connected",
+		connectedAt: "2026-01-10",
+		lastSync: "2026-03-05T11:00:00Z",
+		scopes: ["payments.read", "customers.read", "subscriptions.read"],
+	},
+	{
+		id: "4",
+		name: "Telegram",
+		icon: "✈️",
+		status: "connected",
+		connectedAt: "2026-01-05",
+		lastSync: "2026-03-05T11:05:00Z",
+		scopes: ["bot.messages", "bot.commands"],
+	},
+];
 
-	// Available integrations
-	const availableIntegrations = [
-		{
-			id: 'github',
-			name: 'GitHub',
-			icon: '🐙',
-			description: 'Connect repositories, issues, and PRs',
-			category: 'Development',
-			popular: true
-		},
-		{
-			id: 'slack',
-			name: 'Slack',
-			icon: '💬',
-			description: 'Send messages and notifications to channels',
-			category: 'Communication',
-			popular: true
-		},
-		{
-			id: 'hubspot',
-			name: 'HubSpot',
-			icon: '🧡',
-			description: 'Sync contacts, deals, and marketing data',
-			category: 'CRM',
-			popular: true
-		},
-		{
-			id: 'jira',
-			name: 'Jira',
-			icon: '🎯',
-			description: 'Manage issues and project tracking',
-			category: 'Development',
-			popular: false
-		},
-		{
-			id: 'shopify',
-			name: 'Shopify',
-			icon: '🛒',
-			description: 'Manage products, orders, and customers',
-			category: 'E-commerce',
-			popular: true
-		},
-		{
-			id: 'zapier',
-			name: 'Zapier',
-			icon: '⚡',
-			description: 'Connect to 5000+ apps via Zaps',
-			category: 'Automation',
-			popular: true
-		},
-		{
-			id: 'discord',
-			name: 'Discord',
-			icon: '🎮',
-			description: 'Bot integration for Discord servers',
-			category: 'Communication',
-			popular: false
-		},
-		{
-			id: 'linear',
-			name: 'Linear',
-			icon: '📐',
-			description: 'Modern issue tracking and project management',
-			category: 'Development',
-			popular: false
-		},
-		{
-			id: 'airtable',
-			name: 'Airtable',
-			icon: '📊',
-			description: 'Spreadsheet-database hybrid for data management',
-			category: 'Database',
-			popular: false
-		},
-		{
-			id: 'mailchimp',
-			name: 'Mailchimp',
-			icon: '📧',
-			description: 'Email marketing and automation',
-			category: 'Marketing',
-			popular: false
-		},
-		{
-			id: 'intercom',
-			name: 'Intercom',
-			icon: '💭',
-			description: 'Customer messaging and support platform',
-			category: 'Support',
-			popular: false
-		},
-		{
-			id: 'zendesk',
-			name: 'Zendesk',
-			icon: '🎫',
-			description: 'Customer service and ticketing system',
-			category: 'Support',
-			popular: false
-		}
-	];
+// Available integrations
+const availableIntegrations = [
+	{
+		id: "github",
+		name: "GitHub",
+		icon: "🐙",
+		description: "Connect repositories, issues, and PRs",
+		category: "Development",
+		popular: true,
+	},
+	{
+		id: "slack",
+		name: "Slack",
+		icon: "💬",
+		description: "Send messages and notifications to channels",
+		category: "Communication",
+		popular: true,
+	},
+	{
+		id: "hubspot",
+		name: "HubSpot",
+		icon: "🧡",
+		description: "Sync contacts, deals, and marketing data",
+		category: "CRM",
+		popular: true,
+	},
+	{
+		id: "jira",
+		name: "Jira",
+		icon: "🎯",
+		description: "Manage issues and project tracking",
+		category: "Development",
+		popular: false,
+	},
+	{
+		id: "shopify",
+		name: "Shopify",
+		icon: "🛒",
+		description: "Manage products, orders, and customers",
+		category: "E-commerce",
+		popular: true,
+	},
+	{
+		id: "zapier",
+		name: "Zapier",
+		icon: "⚡",
+		description: "Connect to 5000+ apps via Zaps",
+		category: "Automation",
+		popular: true,
+	},
+	{
+		id: "discord",
+		name: "Discord",
+		icon: "🎮",
+		description: "Bot integration for Discord servers",
+		category: "Communication",
+		popular: false,
+	},
+	{
+		id: "linear",
+		name: "Linear",
+		icon: "📐",
+		description: "Modern issue tracking and project management",
+		category: "Development",
+		popular: false,
+	},
+	{
+		id: "airtable",
+		name: "Airtable",
+		icon: "📊",
+		description: "Spreadsheet-database hybrid for data management",
+		category: "Database",
+		popular: false,
+	},
+	{
+		id: "mailchimp",
+		name: "Mailchimp",
+		icon: "📧",
+		description: "Email marketing and automation",
+		category: "Marketing",
+		popular: false,
+	},
+	{
+		id: "intercom",
+		name: "Intercom",
+		icon: "💭",
+		description: "Customer messaging and support platform",
+		category: "Support",
+		popular: false,
+	},
+	{
+		id: "zendesk",
+		name: "Zendesk",
+		icon: "🎫",
+		description: "Customer service and ticketing system",
+		category: "Support",
+		popular: false,
+	},
+];
 
-	// Categories
-	const categories = ['All', 'Development', 'Communication', 'CRM', 'E-commerce', 'Automation', 'Database', 'Marketing', 'Support'];
-	let selectedCategory = 'All';
+// Categories
+const categories = [
+	"All",
+	"Development",
+	"Communication",
+	"CRM",
+	"E-commerce",
+	"Automation",
+	"Database",
+	"Marketing",
+	"Support",
+];
+let selectedCategory = "All";
 
-	// Modal state
-	let showManageModal = false;
-	let managingIntegration: typeof connectedIntegrations[0] | null = null;
+// Modal state
+let showManageModal = false;
+let managingIntegration: (typeof connectedIntegrations)[0] | null = null;
 
-	function formatDate(dateStr: string): string {
-		const date = new Date(dateStr);
-		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-	}
+function formatDate(dateStr: string): string {
+	const date = new Date(dateStr);
+	return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
-	function formatLastSync(dateStr: string): string {
-		const date = new Date(dateStr);
-		const now = new Date();
-		const diffMs = now.getTime() - date.getTime();
-		const diffMins = Math.floor(diffMs / 60000);
-		if (diffMins < 60) return `${diffMins}m ago`;
-		const diffHours = Math.floor(diffMins / 60);
-		if (diffHours < 24) return `${diffHours}h ago`;
-		return formatDate(dateStr);
-	}
+function formatLastSync(dateStr: string): string {
+	const date = new Date(dateStr);
+	const now = new Date();
+	const diffMs = now.getTime() - date.getTime();
+	const diffMins = Math.floor(diffMs / 60000);
+	if (diffMins < 60) return `${diffMins}m ago`;
+	const diffHours = Math.floor(diffMins / 60);
+	if (diffHours < 24) return `${diffHours}h ago`;
+	return formatDate(dateStr);
+}
 
-	function filteredAvailable() {
-		return availableIntegrations.filter(integration => {
-			const matchesSearch = searchQuery === '' ||
-				integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				integration.description.toLowerCase().includes(searchQuery.toLowerCase());
-			const matchesCategory = selectedCategory === 'All' || integration.category === selectedCategory;
-			return matchesSearch && matchesCategory;
-		});
-	}
+function filteredAvailable() {
+	return availableIntegrations.filter((integration) => {
+		const matchesSearch =
+			searchQuery === "" ||
+			integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			integration.description.toLowerCase().includes(searchQuery.toLowerCase());
+		const matchesCategory = selectedCategory === "All" || integration.category === selectedCategory;
+		return matchesSearch && matchesCategory;
+	});
+}
 
-	function openManageModal(integration: typeof connectedIntegrations[0]) {
-		managingIntegration = integration;
-		showManageModal = true;
-	}
+function openManageModal(integration: (typeof connectedIntegrations)[0]) {
+	managingIntegration = integration;
+	showManageModal = true;
+}
 
-	function closeManageModal() {
-		showManageModal = false;
-		managingIntegration = null;
-	}
+function closeManageModal() {
+	showManageModal = false;
+	managingIntegration = null;
+}
 
-	function handleConnect(integration: typeof availableIntegrations[0]) {
-		// In real app, this would initiate OAuth flow
-		console.log('Connecting to:', integration.name);
-	}
+function handleConnect(_integration: (typeof availableIntegrations)[0]) {
+	// TODO: Initiate OAuth flow - window.location.href = `/oauth/${_integration.provider}/initiate`
+}
 </script>
 
 <div class="p-6 space-y-6">
@@ -300,7 +310,14 @@
 
 <!-- Manage Integration Modal -->
 {#if showManageModal && managingIntegration}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click|self={closeManageModal}>
+	<div
+		class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="manage-modal-title"
+		on:click|self={closeManageModal}
+		on:keydown={(e) => e.key === 'Escape' && closeManageModal()}
+	>
 		<div class="bg-gc-bg-surface border border-gc-border-subtle rounded-2xl w-full max-w-lg p-6">
 			<div class="flex items-center justify-between mb-6">
 				<div class="flex items-center gap-4">
@@ -308,7 +325,7 @@
 						{managingIntegration.icon}
 					</div>
 					<div>
-						<h2 class="text-xl font-semibold text-gc-text-primary">{managingIntegration.name}</h2>
+						<h2 id="manage-modal-title" class="text-xl font-semibold text-gc-text-primary">{managingIntegration.name}</h2>
 						<span class="text-sm text-gc-accent-emerald">● Connected</span>
 					</div>
 				</div>
@@ -319,17 +336,17 @@
 
 			<div class="space-y-4">
 				<div>
-					<label class="text-sm text-gc-text-muted uppercase tracking-wider">Connected Since</label>
+					<span class="text-sm text-gc-text-muted uppercase tracking-wider">Connected Since</span>
 					<p class="text-gc-text-primary mt-1">{formatDate(managingIntegration.connectedAt)}</p>
 				</div>
 
 				<div>
-					<label class="text-sm text-gc-text-muted uppercase tracking-wider">Last Sync</label>
+					<span class="text-sm text-gc-text-muted uppercase tracking-wider">Last Sync</span>
 					<p class="text-gc-text-primary mt-1">{formatLastSync(managingIntegration.lastSync)}</p>
 				</div>
 
 				<div>
-					<label class="text-sm text-gc-text-muted uppercase tracking-wider">Permissions</label>
+					<span class="text-sm text-gc-text-muted uppercase tracking-wider">Permissions</span>
 					<div class="mt-2 space-y-2">
 						{#each managingIntegration.scopes as scope}
 							<div class="flex items-center gap-2 text-gc-text-primary">

@@ -1,207 +1,211 @@
 <script lang="ts">
-	// Filters
-	let searchQuery = '';
-	let selectedAgent = 'all';
-	let selectedStatus = 'all';
-	let selectedPeriod = '7d';
+// Filters
+let searchQuery = "";
+let selectedAgent = "all";
+let selectedStatus = "all";
+let selectedPeriod = "7d";
 
-	// Sample conversations
-	const conversations = [
-		{
-			id: '1',
-			user: {
-				name: 'Sarah Mitchell',
-				avatar: 'SM',
-				telegramId: '@sarah_m'
-			},
-			agent: 'Sales-LV',
-			status: 'open',
-			lastMessage: 'Quick demo of the workflow automation features',
-			timestamp: '2026-03-05T10:23:00Z',
-			messageCount: 12,
-			language: 'EN'
+// Sample conversations
+const conversations = [
+	{
+		id: "1",
+		user: {
+			name: "Sarah Mitchell",
+			avatar: "SM",
+			telegramId: "@sarah_m",
 		},
-		{
-			id: '2',
-			user: {
-				name: 'John Decker',
-				avatar: 'JD',
-				telegramId: '@johnd'
-			},
-			agent: 'Support-EN',
-			status: 'closed',
-			lastMessage: 'Thanks for the help!',
-			timestamp: '2026-03-05T09:45:00Z',
-			messageCount: 8,
-			language: 'EN'
+		agent: "Sales-LV",
+		status: "open",
+		lastMessage: "Quick demo of the workflow automation features",
+		timestamp: "2026-03-05T10:23:00Z",
+		messageCount: 12,
+		language: "EN",
+	},
+	{
+		id: "2",
+		user: {
+			name: "John Decker",
+			avatar: "JD",
+			telegramId: "@johnd",
 		},
-		{
-			id: '3',
-			user: {
-				name: 'Emma Laurent',
-				avatar: 'EL',
-				telegramId: '@emma_l'
-			},
-			agent: 'Support-RU',
-			status: 'escalated',
-			lastMessage: 'Does it work with my current setup?',
-			timestamp: '2026-03-05T09:10:00Z',
-			messageCount: 15,
-			language: 'RU'
+		agent: "Support-EN",
+		status: "closed",
+		lastMessage: "Thanks for the help!",
+		timestamp: "2026-03-05T09:45:00Z",
+		messageCount: 8,
+		language: "EN",
+	},
+	{
+		id: "3",
+		user: {
+			name: "Emma Laurent",
+			avatar: "EL",
+			telegramId: "@emma_l",
 		},
-		{
-			id: '4',
-			user: {
-				name: 'Aleksejs Berzins',
-				avatar: 'AB',
-				telegramId: '@aleksejs'
-			},
-			agent: 'Sales-LV',
-			status: 'open',
-			lastMessage: 'Cik tas maksā uzņēmuma plānam?',
-			timestamp: '2026-03-05T08:30:00Z',
-			messageCount: 6,
-			language: 'LV'
+		agent: "Support-RU",
+		status: "escalated",
+		lastMessage: "Does it work with my current setup?",
+		timestamp: "2026-03-05T09:10:00Z",
+		messageCount: 15,
+		language: "RU",
+	},
+	{
+		id: "4",
+		user: {
+			name: "Aleksejs Berzins",
+			avatar: "AB",
+			telegramId: "@aleksejs",
 		},
-		{
-			id: '5',
-			user: {
-				name: 'Maria Petrova',
-				avatar: 'MP',
-				telegramId: '@maria_p'
-			},
-			agent: 'Support-RU',
-			status: 'closed',
-			lastMessage: 'Спасибо за помощь!',
-			timestamp: '2026-03-04T16:20:00Z',
-			messageCount: 23,
-			language: 'RU'
-		}
-	];
-
-	// Selected conversation
-	let selectedConversation: typeof conversations[0] | null = conversations[0];
-
-	type ConversationMessage =
-		| {
-				id: string;
-				sender: 'user';
-				content: string;
-				timestamp: string;
-		  }
-		| {
-				id: string;
-				sender: 'agent';
-				content: string;
-				timestamp: string;
-				model: string;
-				quality: number;
-				latency: number;
-				tokens: number;
-		  };
-
-	// Messages for the selected conversation
-	const messages: ConversationMessage[] = [
-		{
-			id: '1',
-			sender: 'user',
-			content: 'Hi, can you explain the pricing model?',
-			timestamp: '2026-03-05T10:23:00Z'
+		agent: "Sales-LV",
+		status: "open",
+		lastMessage: "Cik tas maksā uzņēmuma plānam?",
+		timestamp: "2026-03-05T08:30:00Z",
+		messageCount: 6,
+		language: "LV",
+	},
+	{
+		id: "5",
+		user: {
+			name: "Maria Petrova",
+			avatar: "MP",
+			telegramId: "@maria_p",
 		},
-		{
-			id: '2',
-			sender: 'agent',
-			content: 'Of course! We offer three main plans: Starter at $29/month, Pro at $79/month, and Business at $149/month. Each plan includes different levels of agent capacity and token budgets. Would you like me to explain the features of each plan?',
-			timestamp: '2026-03-05T10:24:00Z',
-			model: 'claude-sonnet-4',
-			quality: 0.92,
-			latency: 1.2,
-			tokens: 342
-		},
-		{
-			id: '3',
-			sender: 'user',
-			content: 'Got it. Can I get a trial account?',
-			timestamp: '2026-03-05T10:25:00Z'
-		},
-		{
-			id: '4',
-			sender: 'agent',
-			content: 'Absolutely! I can set up a 14-day free trial for you right now. You\'ll get access to all Pro features so you can fully explore the platform. Would you like me to proceed with that?',
-			timestamp: '2026-03-05T10:26:00Z',
-			model: 'claude-sonnet-4',
-			quality: 0.88,
-			latency: 0.9,
-			tokens: 287
-		},
-		{
-			id: '5',
-			sender: 'user',
-			content: 'Yes please! Also, can you show me how the workflow automation works?',
-			timestamp: '2026-03-05T10:28:00Z'
-		},
-		{
-			id: '6',
-			sender: 'agent',
-			content: 'Great! I\'ve started setting up your trial account. As for workflow automation, our visual editor lets you create complex automation flows using drag-and-drop. You can define triggers (like incoming messages or scheduled times), add conditions to route messages based on content or user data, and execute actions like sending responses, updating CRM records, or calling external APIs. Would you like me to walk you through a specific use case?',
-			timestamp: '2026-03-05T10:29:00Z',
-			model: 'claude-sonnet-4',
-			quality: 0.94,
-			latency: 1.4,
-			tokens: 412
-		}
-	];
+		agent: "Support-RU",
+		status: "closed",
+		lastMessage: "Спасибо за помощь!",
+		timestamp: "2026-03-04T16:20:00Z",
+		messageCount: 23,
+		language: "RU",
+	},
+];
 
-	// Agents for filter
-	const agents = ['Sales-LV', 'Sales-EN', 'Support-EN', 'Support-RU'];
-	const statusOptions = ['all', 'open', 'closed', 'escalated'];
-	const periodOptions = [
-		{ value: '24h', label: 'Last 24 hours' },
-		{ value: '7d', label: 'Last 7 days' },
-		{ value: '30d', label: 'Last 30 days' },
-		{ value: 'all', label: 'All time' }
-	];
+// Selected conversation
+let selectedConversation: (typeof conversations)[0] | null = conversations[0];
 
-	function formatTime(dateStr: string): string {
-		const date = new Date(dateStr);
-		return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-	}
+type ConversationMessage =
+	| {
+			id: string;
+			sender: "user";
+			content: string;
+			timestamp: string;
+	  }
+	| {
+			id: string;
+			sender: "agent";
+			content: string;
+			timestamp: string;
+			model: string;
+			quality: number;
+			latency: number;
+			tokens: number;
+	  };
 
-	function formatRelativeTime(dateStr: string): string {
-		const date = new Date(dateStr);
-		const now = new Date();
-		const diffMs = now.getTime() - date.getTime();
-		const diffMins = Math.floor(diffMs / 60000);
-		if (diffMins < 60) return `${diffMins}m ago`;
-		const diffHours = Math.floor(diffMins / 60);
-		if (diffHours < 24) return `${diffHours}h ago`;
-		const diffDays = Math.floor(diffHours / 24);
-		return `${diffDays}d ago`;
-	}
+// Messages for the selected conversation
+const messages: ConversationMessage[] = [
+	{
+		id: "1",
+		sender: "user",
+		content: "Hi, can you explain the pricing model?",
+		timestamp: "2026-03-05T10:23:00Z",
+	},
+	{
+		id: "2",
+		sender: "agent",
+		content:
+			"Of course! We offer three main plans: Starter at $29/month, Pro at $79/month, and Business at $149/month. Each plan includes different levels of agent capacity and token budgets. Would you like me to explain the features of each plan?",
+		timestamp: "2026-03-05T10:24:00Z",
+		model: "claude-sonnet-4",
+		quality: 0.92,
+		latency: 1.2,
+		tokens: 342,
+	},
+	{
+		id: "3",
+		sender: "user",
+		content: "Got it. Can I get a trial account?",
+		timestamp: "2026-03-05T10:25:00Z",
+	},
+	{
+		id: "4",
+		sender: "agent",
+		content:
+			"Absolutely! I can set up a 14-day free trial for you right now. You'll get access to all Pro features so you can fully explore the platform. Would you like me to proceed with that?",
+		timestamp: "2026-03-05T10:26:00Z",
+		model: "claude-sonnet-4",
+		quality: 0.88,
+		latency: 0.9,
+		tokens: 287,
+	},
+	{
+		id: "5",
+		sender: "user",
+		content: "Yes please! Also, can you show me how the workflow automation works?",
+		timestamp: "2026-03-05T10:28:00Z",
+	},
+	{
+		id: "6",
+		sender: "agent",
+		content:
+			"Great! I've started setting up your trial account. As for workflow automation, our visual editor lets you create complex automation flows using drag-and-drop. You can define triggers (like incoming messages or scheduled times), add conditions to route messages based on content or user data, and execute actions like sending responses, updating CRM records, or calling external APIs. Would you like me to walk you through a specific use case?",
+		timestamp: "2026-03-05T10:29:00Z",
+		model: "claude-sonnet-4",
+		quality: 0.94,
+		latency: 1.4,
+		tokens: 412,
+	},
+];
 
-	function getStatusColor(status: string): string {
-		const colors: Record<string, string> = {
-			open: 'gc-accent-emerald',
-			closed: 'gc-text-muted',
-			escalated: 'gc-accent-amber'
-		};
-		return colors[status] || 'gc-text-secondary';
-	}
+// Agents for filter
+const agents = ["Sales-LV", "Sales-EN", "Support-EN", "Support-RU"];
+const statusOptions = ["all", "open", "closed", "escalated"];
+const periodOptions = [
+	{ value: "24h", label: "Last 24 hours" },
+	{ value: "7d", label: "Last 7 days" },
+	{ value: "30d", label: "Last 30 days" },
+	{ value: "all", label: "All time" },
+];
 
-	function getStatusLabel(status: string): string {
-		return status.charAt(0).toUpperCase() + status.slice(1);
-	}
+function formatTime(dateStr: string): string {
+	const date = new Date(dateStr);
+	return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+}
 
-	function filteredConversations() {
-		return conversations.filter(conv => {
-			const matchesSearch = searchQuery === '' ||
-				conv.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
-			const matchesAgent = selectedAgent === 'all' || conv.agent === selectedAgent;
-			const matchesStatus = selectedStatus === 'all' || conv.status === selectedStatus;
-			return matchesSearch && matchesAgent && matchesStatus;
-		});
-	}
+function formatRelativeTime(dateStr: string): string {
+	const date = new Date(dateStr);
+	const now = new Date();
+	const diffMs = now.getTime() - date.getTime();
+	const diffMins = Math.floor(diffMs / 60000);
+	if (diffMins < 60) return `${diffMins}m ago`;
+	const diffHours = Math.floor(diffMins / 60);
+	if (diffHours < 24) return `${diffHours}h ago`;
+	const diffDays = Math.floor(diffHours / 24);
+	return `${diffDays}d ago`;
+}
+
+function getStatusColor(status: string): string {
+	const colors: Record<string, string> = {
+		open: "gc-accent-emerald",
+		closed: "gc-text-muted",
+		escalated: "gc-accent-amber",
+	};
+	return colors[status] || "gc-text-secondary";
+}
+
+function getStatusLabel(status: string): string {
+	return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function filteredConversations() {
+	return conversations.filter((conv) => {
+		const matchesSearch =
+			searchQuery === "" ||
+			conv.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			conv.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
+		const matchesAgent = selectedAgent === "all" || conv.agent === selectedAgent;
+		const matchesStatus = selectedStatus === "all" || conv.status === selectedStatus;
+		return matchesSearch && matchesAgent && matchesStatus;
+	});
+}
 </script>
 
 <div class="flex h-[calc(100vh-4rem)]">

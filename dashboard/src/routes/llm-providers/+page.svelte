@@ -1,152 +1,153 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { api } from "$lib/api";
+import { api } from "$lib/api";
+import { onMount } from "svelte";
 
-	// Demo providers
-	const demoProviders = [
-		{
-			id: "1",
-			slug: "anthropic",
-			name: "Anthropic Claude",
-			is_enabled: true,
-			models: ["claude-sonnet-4", "claude-haiku-4", "claude-opus-4"],
-			pricing: { input: 3, output: 15 },
-			usage_pct: 67,
-			cost_usd: 82.91,
-			latency_ms: 1200,
-			health_pct: 99.9,
-		},
-		{
-			id: "2",
-			slug: "qwen",
-			name: "Alibaba Qwen",
-			is_enabled: true,
-			models: ["qwen-2.5-72b", "qwen-2.5-7b"],
-			pricing: { input: 0.27, output: 1.1 },
-			usage_pct: 28,
-			cost_usd: 35.83,
-			latency_ms: 800,
-			health_pct: 99.2,
-		},
-		{
-			id: "3",
-			slug: "openai",
-			name: "OpenAI",
-			is_enabled: false,
-			models: ["gpt-4o", "gpt-4o-mini"],
-			pricing: { input: 5, output: 15 },
-			usage_pct: 5,
-			cost_usd: 9.1,
-			latency_ms: 1500,
-			health_pct: 98.5,
-		},
-	];
+// Demo providers
+const demoProviders = [
+	{
+		id: "1",
+		slug: "anthropic",
+		name: "Anthropic Claude",
+		is_enabled: true,
+		models: ["claude-sonnet-4", "claude-haiku-4", "claude-opus-4"],
+		pricing: { input: 3, output: 15 },
+		usage_pct: 67,
+		cost_usd: 82.91,
+		latency_ms: 1200,
+		health_pct: 99.9,
+	},
+	{
+		id: "2",
+		slug: "qwen",
+		name: "Alibaba Qwen",
+		is_enabled: true,
+		models: ["qwen-2.5-72b", "qwen-2.5-7b"],
+		pricing: { input: 0.27, output: 1.1 },
+		usage_pct: 28,
+		cost_usd: 35.83,
+		latency_ms: 800,
+		health_pct: 99.2,
+	},
+	{
+		id: "3",
+		slug: "openai",
+		name: "OpenAI",
+		is_enabled: false,
+		models: ["gpt-4o", "gpt-4o-mini"],
+		pricing: { input: 5, output: 15 },
+		usage_pct: 5,
+		cost_usd: 9.1,
+		latency_ms: 1500,
+		health_pct: 98.5,
+	},
+];
 
-	const demoRoutingRules = [
-		{
-			id: "1",
-			condition: 'task = "complex reasoning"',
-			routes: [
-				{ model: "claude-sonnet-4", weight: 80 },
-				{ model: "qwen-2.5-72b", weight: 20 },
-			],
-		},
-		{
-			id: "2",
-			condition: 'task = "simple chat"',
-			routes: [
-				{ model: "qwen-2.5-7b", weight: 90 },
-				{ model: "claude-haiku-4", weight: 10 },
-			],
-		},
-	];
+const demoRoutingRules = [
+	{
+		id: "1",
+		condition: 'task = "complex reasoning"',
+		routes: [
+			{ model: "claude-sonnet-4", weight: 80 },
+			{ model: "qwen-2.5-72b", weight: 20 },
+		],
+	},
+	{
+		id: "2",
+		condition: 'task = "simple chat"',
+		routes: [
+			{ model: "qwen-2.5-7b", weight: 90 },
+			{ model: "claude-haiku-4", weight: 10 },
+		],
+	},
+];
 
-	const demoCostData = {
-		today: 23.4,
-		month: 487.2,
-		budget: 600,
-		trend: [12, 18, 22, 28, 35, 42, 38, 32, 28, 24, 20, 18, 15, 12, 14, 16, 20, 25, 30, 28, 24, 22, 20, 18, 16, 20, 24, 28, 26, 23],
-	};
+const demoCostData = {
+	today: 23.4,
+	month: 487.2,
+	budget: 600,
+	trend: [
+		12, 18, 22, 28, 35, 42, 38, 32, 28, 24, 20, 18, 15, 12, 14, 16, 20, 25, 30, 28, 24, 22, 20, 18, 16, 20, 24, 28, 26,
+		23,
+	],
+};
 
-	type Provider = (typeof demoProviders)[0];
-	type RawProvider = {
-		id: string;
-		slug: string;
-		name: string;
-		is_enabled: boolean;
-		models_json?: string;
-		pricing_json?: string;
-	};
+type Provider = (typeof demoProviders)[0];
+type RawProvider = {
+	id: string;
+	slug: string;
+	name: string;
+	is_enabled: boolean;
+	models_json?: string;
+	pricing_json?: string;
+};
 
-	let providers: Provider[] = demoProviders;
-	let loading = true;
-	let editingProvider: Provider | null = null;
+let providers: Provider[] = demoProviders;
+let loading = true;
+let editingProvider: Provider | null = null;
 
-	function parseModels(value: string | undefined, fallback: string[]): string[] {
-		if (!value) return fallback;
-		try {
-			const parsed = JSON.parse(value) as unknown;
-			if (Array.isArray(parsed)) {
-				return parsed.filter((item): item is string => typeof item === "string");
-			}
-		} catch {
-			// Keep fallback when JSON parsing fails.
+function parseModels(value: string | undefined, fallback: string[]): string[] {
+	if (!value) return fallback;
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (Array.isArray(parsed)) {
+			return parsed.filter((item): item is string => typeof item === "string");
 		}
-		return fallback;
+	} catch {
+		// Keep fallback when JSON parsing fails.
 	}
+	return fallback;
+}
 
-	function parsePricing(value: string | undefined, fallback: Provider["pricing"]): Provider["pricing"] {
-		if (!value) return fallback;
-		try {
-			const parsed = JSON.parse(value) as { input?: unknown; output?: unknown };
-			const input = typeof parsed.input === "number" ? parsed.input : fallback.input;
-			const output = typeof parsed.output === "number" ? parsed.output : fallback.output;
-			return { input, output };
-		} catch {
-			// Keep fallback when JSON parsing fails.
-		}
-		return fallback;
+function parsePricing(value: string | undefined, fallback: Provider["pricing"]): Provider["pricing"] {
+	if (!value) return fallback;
+	try {
+		const parsed = JSON.parse(value) as { input?: unknown; output?: unknown };
+		const input = typeof parsed.input === "number" ? parsed.input : fallback.input;
+		const output = typeof parsed.output === "number" ? parsed.output : fallback.output;
+		return { input, output };
+	} catch {
+		// Keep fallback when JSON parsing fails.
 	}
+	return fallback;
+}
 
-	onMount(async () => {
-		try {
-			const response = await api.getProviders();
-			if (response.success && response.data) {
-				// Merge API data with demo defaults and safe fallbacks for new/unknown slugs.
-				providers = (response.data as RawProvider[]).map((p) => {
-					const demo = demoProviders.find((d) => d.slug === p.slug);
-					const defaultPricing = demo?.pricing ?? { input: 0, output: 0 };
+onMount(async () => {
+	try {
+		const response = await api.getProviders();
+		if (response.success && response.data) {
+			// Merge API data with demo defaults and safe fallbacks for new/unknown slugs.
+			providers = (response.data as RawProvider[]).map((p) => {
+				const demo = demoProviders.find((d) => d.slug === p.slug);
+				const defaultPricing = demo?.pricing ?? { input: 0, output: 0 };
 
-					return {
-						id: p.id,
-						slug: p.slug,
-						name: p.name || demo?.name || p.slug,
-						is_enabled: p.is_enabled,
-						models: parseModels(p.models_json, demo?.models ?? []),
-						pricing: parsePricing(p.pricing_json, defaultPricing),
-						usage_pct: demo?.usage_pct ?? 0,
-						cost_usd: demo?.cost_usd ?? 0,
-						latency_ms: demo?.latency_ms ?? 0,
-						health_pct: demo?.health_pct ?? 100,
-					};
-				});
-			}
-		} catch {
-			// Use demo data
+				return {
+					id: p.id,
+					slug: p.slug,
+					name: p.name || demo?.name || p.slug,
+					is_enabled: p.is_enabled,
+					models: parseModels(p.models_json, demo?.models ?? []),
+					pricing: parsePricing(p.pricing_json, defaultPricing),
+					usage_pct: demo?.usage_pct ?? 0,
+					cost_usd: demo?.cost_usd ?? 0,
+					latency_ms: demo?.latency_ms ?? 0,
+					health_pct: demo?.health_pct ?? 100,
+				};
+			});
 		}
-		loading = false;
-	});
-
-	async function toggleProvider(provider: Provider) {
-		try {
-			await api.updateProvider(provider.id, { is_enabled: !provider.is_enabled });
-			providers = providers.map((p) =>
-				p.id === provider.id ? { ...p, is_enabled: !p.is_enabled } : p
-			);
-		} catch {
-			// Handle error
-		}
+	} catch {
+		// Use demo data
 	}
+	loading = false;
+});
+
+async function toggleProvider(provider: Provider) {
+	try {
+		await api.updateProvider(provider.id, { is_enabled: !provider.is_enabled });
+		providers = providers.map((p) => (p.id === provider.id ? { ...p, is_enabled: !p.is_enabled } : p));
+	} catch {
+		// Handle error
+	}
+}
 </script>
 
 <svelte:head>

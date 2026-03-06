@@ -1,81 +1,81 @@
 <script lang="ts">
-	// Date range
-	let dateRange = '7d';
-	const dateRangeOptions = [
-		{ value: '24h', label: 'Last 24 hours' },
-		{ value: '7d', label: 'Last 7 days' },
-		{ value: '30d', label: 'Last 30 days' },
-		{ value: 'custom', label: 'Custom range' }
-	];
+// Date range
+let dateRange = "7d";
+const dateRangeOptions = [
+	{ value: "24h", label: "Last 24 hours" },
+	{ value: "7d", label: "Last 7 days" },
+	{ value: "30d", label: "Last 30 days" },
+	{ value: "custom", label: "Custom range" },
+];
 
-	// KPI metrics
-	const kpis = {
-		avgResponseTime: { value: 1.2, unit: 's', change: -15 },
-		resolutionRate: { value: 87.4, unit: '%', change: 3.2 },
-		customerSatisfaction: { value: 4.2, max: 5.0, change: 0.1 },
-		cost7d: { value: 127.84, unit: '$', change: -8 }
-	};
+// KPI metrics
+const kpis = {
+	avgResponseTime: { value: 1.2, unit: "s", change: -15 },
+	resolutionRate: { value: 87.4, unit: "%", change: 3.2 },
+	customerSatisfaction: { value: 4.2, max: 5.0, change: 0.1 },
+	cost7d: { value: 127.84, unit: "$", change: -8 },
+};
 
-	// Messages over time data (simplified for SVG)
-	const messagesData = [
-		{ day: 'Mar 1', value: 450 },
-		{ day: 'Mar 2', value: 680 },
-		{ day: 'Mar 3', value: 820 },
-		{ day: 'Mar 4', value: 950 },
-		{ day: 'Mar 5', value: 847 }
-	];
-	const maxMessages = Math.max(...messagesData.map(d => d.value));
+// Messages over time data (simplified for SVG)
+const messagesData = [
+	{ day: "Mar 1", value: 450 },
+	{ day: "Mar 2", value: 680 },
+	{ day: "Mar 3", value: 820 },
+	{ day: "Mar 4", value: 950 },
+	{ day: "Mar 5", value: 847 },
+];
+const maxMessages = Math.max(...messagesData.map((d) => d.value));
 
-	// Agent performance
-	const agentPerformance = [
-		{ name: 'Sales-LV', messages: 847, avgResponse: 1.1, escapceRate: 2.3 },
-		{ name: 'Support-EN', messages: 623, avgResponse: 1.4, escapceRate: 5.1 },
-		{ name: 'Support-RU', messages: 234, avgResponse: 1.2, escapceRate: 3.8 },
-		{ name: 'Lead-Qualify', messages: 189, avgResponse: 0.8, escapceRate: 1.2 },
-		{ name: 'Data-Collector', messages: 45, avgResponse: 2.3, escapceRate: 0.0 }
-	];
+// Agent performance
+const agentPerformance = [
+	{ name: "Sales-LV", messages: 847, avgResponse: 1.1, escapceRate: 2.3 },
+	{ name: "Support-EN", messages: 623, avgResponse: 1.4, escapceRate: 5.1 },
+	{ name: "Support-RU", messages: 234, avgResponse: 1.2, escapceRate: 3.8 },
+	{ name: "Lead-Qualify", messages: 189, avgResponse: 0.8, escapceRate: 1.2 },
+	{ name: "Data-Collector", messages: 45, avgResponse: 2.3, escapceRate: 0.0 },
+];
 
-	// LLM cost breakdown
-	const llmCosts = [
-		{ provider: 'Claude', percentage: 65, amount: 82.91, color: '#8B5CF6' },
-		{ provider: 'Qwen', percentage: 28, amount: 35.83, color: '#10B981' },
-		{ provider: 'Other', percentage: 7, amount: 9.10, color: '#6B7280' }
-	];
+// LLM cost breakdown
+const llmCosts = [
+	{ provider: "Claude", percentage: 65, amount: 82.91, color: "#8B5CF6" },
+	{ provider: "Qwen", percentage: 28, amount: 35.83, color: "#10B981" },
+	{ provider: "Other", percentage: 7, amount: 9.1, color: "#6B7280" },
+];
 
-	// Language distribution
-	const languageStats = [
-		{ lang: 'LV', percentage: 42, color: '#3B82F6' },
-		{ lang: 'EN', percentage: 35, color: '#10B981' },
-		{ lang: 'RU', percentage: 23, color: '#F59E0B' }
-	];
+// Language distribution
+const languageStats = [
+	{ lang: "LV", percentage: 42, color: "#3B82F6" },
+	{ lang: "EN", percentage: 35, color: "#10B981" },
+	{ lang: "RU", percentage: 23, color: "#F59E0B" },
+];
 
-	// Peak hours heatmap data (7 days x 24 hours)
-	const peakHoursData = [
-		// Mon
-		[0, 0, 0, 0, 0, 1, 2, 4, 6, 7, 8, 8, 7, 6, 5, 4, 5, 6, 7, 5, 3, 2, 1, 0],
-		// Tue
-		[0, 0, 0, 0, 0, 1, 3, 5, 7, 8, 9, 9, 8, 7, 6, 5, 6, 7, 8, 6, 4, 2, 1, 0],
-		// Wed
-		[0, 0, 0, 0, 0, 1, 2, 5, 7, 8, 8, 9, 8, 7, 6, 5, 5, 6, 7, 5, 3, 2, 1, 0],
-		// Thu
-		[0, 0, 0, 0, 0, 1, 3, 4, 6, 7, 8, 8, 7, 6, 5, 4, 5, 6, 6, 4, 3, 2, 1, 0],
-		// Fri
-		[0, 0, 0, 0, 0, 1, 2, 4, 5, 6, 7, 7, 6, 5, 4, 3, 3, 4, 4, 3, 2, 1, 0, 0],
-		// Sat
-		[0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 4, 4, 4, 3, 3, 2, 2, 2, 2, 2, 1, 1, 0, 0],
-		// Sun
-		[0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 3, 3, 3, 2, 2, 2, 2, 3, 3, 2, 1, 1, 0, 0]
-	];
-	const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// Peak hours heatmap data (7 days x 24 hours)
+const peakHoursData = [
+	// Mon
+	[0, 0, 0, 0, 0, 1, 2, 4, 6, 7, 8, 8, 7, 6, 5, 4, 5, 6, 7, 5, 3, 2, 1, 0],
+	// Tue
+	[0, 0, 0, 0, 0, 1, 3, 5, 7, 8, 9, 9, 8, 7, 6, 5, 6, 7, 8, 6, 4, 2, 1, 0],
+	// Wed
+	[0, 0, 0, 0, 0, 1, 2, 5, 7, 8, 8, 9, 8, 7, 6, 5, 5, 6, 7, 5, 3, 2, 1, 0],
+	// Thu
+	[0, 0, 0, 0, 0, 1, 3, 4, 6, 7, 8, 8, 7, 6, 5, 4, 5, 6, 6, 4, 3, 2, 1, 0],
+	// Fri
+	[0, 0, 0, 0, 0, 1, 2, 4, 5, 6, 7, 7, 6, 5, 4, 3, 3, 4, 4, 3, 2, 1, 0, 0],
+	// Sat
+	[0, 0, 0, 0, 0, 0, 1, 2, 3, 3, 4, 4, 4, 3, 3, 2, 2, 2, 2, 2, 1, 1, 0, 0],
+	// Sun
+	[0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 3, 3, 3, 2, 2, 2, 2, 3, 3, 2, 1, 1, 0, 0],
+];
+const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-	function getHeatmapColor(value: number): string {
-		if (value === 0) return '#12121A';
-		if (value <= 2) return '#1E3A8A';
-		if (value <= 4) return '#2563EB';
-		if (value <= 6) return '#3B82F6';
-		if (value <= 8) return '#60A5FA';
-		return '#93C5FD';
-	}
+function getHeatmapColor(value: number): string {
+	if (value === 0) return "#12121A";
+	if (value <= 2) return "#1E3A8A";
+	if (value <= 4) return "#2563EB";
+	if (value <= 6) return "#3B82F6";
+	if (value <= 8) return "#60A5FA";
+	return "#93C5FD";
+}
 </script>
 
 <div class="p-6 space-y-6">

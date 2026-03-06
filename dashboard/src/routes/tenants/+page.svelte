@@ -1,220 +1,221 @@
 <script lang="ts">
-	// Filters
-	let searchQuery = '';
-	let filterPlan = 'all';
-	let filterStatus = 'all';
+// Filters
+let searchQuery = "";
+let filterPlan = "all";
+let filterStatus = "all";
 
-	// Sample tenants data
-	const tenants = [
-		{
-			id: '1',
-			name: 'Acme Corporation',
-			plan: 'pro',
-			status: 'active',
-			agents: 5,
-			mrr: 237,
-			stripeId: 'cus_L9x2K...',
-			churnRisk: 'low',
-			renewal: '2026-04-15',
-			usage: {
-				messages: 12847,
-				messagesLimit: 50000,
-				tokens: 489000000,
-				tokensLimit: 500000000,
-				cost: 189.23,
-				costBudget: 200
-			},
-			owner: {
-				name: 'Sarah Chen',
-				email: 'sarah@acmecorp.com'
-			},
-			partner: {
-				tier: 'Partner',
-				id: 'ACME-2024',
-				referredBy: 'John Martinez (jm-001)',
-				commission: 40
-			},
-			teamSize: 4
+// Sample tenants data
+const tenants = [
+	{
+		id: "1",
+		name: "Acme Corporation",
+		plan: "pro",
+		status: "active",
+		agents: 5,
+		mrr: 237,
+		stripeId: "cus_L9x2K...",
+		churnRisk: "low",
+		renewal: "2026-04-15",
+		usage: {
+			messages: 12847,
+			messagesLimit: 50000,
+			tokens: 489000000,
+			tokensLimit: 500000000,
+			cost: 189.23,
+			costBudget: 200,
 		},
-		{
-			id: '2',
-			name: 'Tech Startup Inc',
-			plan: 'starter',
-			status: 'active',
-			agents: 1,
-			mrr: 29,
-			stripeId: 'cus_M4x8Y...',
-			churnRisk: 'medium',
-			renewal: '2026-03-25',
-			usage: {
-				messages: 1850,
-				messagesLimit: 2500,
-				tokens: 4200000,
-				tokensLimit: 5000000,
-				cost: 24.50,
-				costBudget: 30
-			},
-			owner: {
-				name: 'Alex Turner',
-				email: 'alex@techstartup.io'
-			},
-			partner: null,
-			teamSize: 2
+		owner: {
+			name: "Sarah Chen",
+			email: "sarah@acmecorp.com",
 		},
-		{
-			id: '3',
-			name: 'Global Solutions',
-			plan: 'business',
-			status: 'suspended',
-			agents: 8,
-			mrr: 447,
-			stripeId: 'cus_K2p9Z...',
-			churnRisk: 'high',
-			renewal: '2026-03-10',
-			usage: {
-				messages: 45000,
-				messagesLimit: 100000,
-				tokens: 350000000,
-				tokensLimit: 500000000,
-				cost: 312.00,
-				costBudget: 400
-			},
-			owner: {
-				name: 'Maria Garcia',
-				email: 'maria@globalsolutions.com'
-			},
-			partner: null,
-			teamSize: 6
+		partner: {
+			tier: "Partner",
+			id: "ACME-2024",
+			referredBy: "John Martinez (jm-001)",
+			commission: 40,
 		},
-		{
-			id: '4',
-			name: 'Local Services',
-			plan: 'pro',
-			status: 'active',
-			agents: 3,
-			mrr: 158,
-			stripeId: 'cus_N7m3Q...',
-			churnRisk: 'low',
-			renewal: '2026-04-20',
-			usage: {
-				messages: 8200,
-				messagesLimit: 50000,
-				tokens: 120000000,
-				tokensLimit: 500000000,
-				cost: 89.50,
-				costBudget: 150
-			},
-			owner: {
-				name: 'James Wilson',
-				email: 'james@localservices.lv'
-			},
-			partner: {
-				tier: 'Affiliate',
-				id: 'AFF-2025',
-				referredBy: null,
-				commission: 30
-			},
-			teamSize: 3
+		teamSize: 4,
+	},
+	{
+		id: "2",
+		name: "Tech Startup Inc",
+		plan: "starter",
+		status: "active",
+		agents: 1,
+		mrr: 29,
+		stripeId: "cus_M4x8Y...",
+		churnRisk: "medium",
+		renewal: "2026-03-25",
+		usage: {
+			messages: 1850,
+			messagesLimit: 2500,
+			tokens: 4200000,
+			tokensLimit: 5000000,
+			cost: 24.5,
+			costBudget: 30,
 		},
-		{
-			id: '5',
-			name: 'Premium Partners',
-			plan: 'enterprise',
-			status: 'active',
-			agents: 12,
-			mrr: 2400,
-			stripeId: 'cus_P1k5R...',
-			churnRisk: 'low',
-			renewal: '2026-06-01',
-			usage: {
-				messages: 78000,
-				messagesLimit: -1, // unlimited
-				tokens: 2100000000,
-				tokensLimit: -1,
-				cost: 1850.00,
-				costBudget: 2500
-			},
-			owner: {
-				name: 'Elena Petrova',
-				email: 'elena@premiumpartners.eu'
-			},
-			partner: {
-				tier: 'Master',
-				id: 'MASTER-001',
-				referredBy: null,
-				commission: 55
-			},
-			teamSize: 12
-		}
-	];
+		owner: {
+			name: "Alex Turner",
+			email: "alex@techstartup.io",
+		},
+		partner: null,
+		teamSize: 2,
+	},
+	{
+		id: "3",
+		name: "Global Solutions",
+		plan: "business",
+		status: "suspended",
+		agents: 8,
+		mrr: 447,
+		stripeId: "cus_K2p9Z...",
+		churnRisk: "high",
+		renewal: "2026-03-10",
+		usage: {
+			messages: 45000,
+			messagesLimit: 100000,
+			tokens: 350000000,
+			tokensLimit: 500000000,
+			cost: 312.0,
+			costBudget: 400,
+		},
+		owner: {
+			name: "Maria Garcia",
+			email: "maria@globalsolutions.com",
+		},
+		partner: null,
+		teamSize: 6,
+	},
+	{
+		id: "4",
+		name: "Local Services",
+		plan: "pro",
+		status: "active",
+		agents: 3,
+		mrr: 158,
+		stripeId: "cus_N7m3Q...",
+		churnRisk: "low",
+		renewal: "2026-04-20",
+		usage: {
+			messages: 8200,
+			messagesLimit: 50000,
+			tokens: 120000000,
+			tokensLimit: 500000000,
+			cost: 89.5,
+			costBudget: 150,
+		},
+		owner: {
+			name: "James Wilson",
+			email: "james@localservices.lv",
+		},
+		partner: {
+			tier: "Affiliate",
+			id: "AFF-2025",
+			referredBy: null,
+			commission: 30,
+		},
+		teamSize: 3,
+	},
+	{
+		id: "5",
+		name: "Premium Partners",
+		plan: "enterprise",
+		status: "active",
+		agents: 12,
+		mrr: 2400,
+		stripeId: "cus_P1k5R...",
+		churnRisk: "low",
+		renewal: "2026-06-01",
+		usage: {
+			messages: 78000,
+			messagesLimit: -1, // unlimited
+			tokens: 2100000000,
+			tokensLimit: -1,
+			cost: 1850.0,
+			costBudget: 2500,
+		},
+		owner: {
+			name: "Elena Petrova",
+			email: "elena@premiumpartners.eu",
+		},
+		partner: {
+			tier: "Master",
+			id: "MASTER-001",
+			referredBy: null,
+			commission: 55,
+		},
+		teamSize: 12,
+	},
+];
 
-	// Plan options
-	const plans = ['starter', 'pro', 'business', 'enterprise'];
-	const statuses = ['active', 'suspended'];
+// Plan options
+const plans = ["starter", "pro", "business", "enterprise"];
+const statuses = ["active", "suspended"];
 
-	// Selected tenant for detail panel
-	let selectedTenant: typeof tenants[0] | null = null;
+// Selected tenant for detail panel
+let selectedTenant: (typeof tenants)[0] | null = null;
 
-	// Bulk selection
-	let selectedTenantIds: string[] = [];
+// Bulk selection
+let selectedTenantIds: string[] = [];
 
-	function formatCurrency(amount: number): string {
-		return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+function formatCurrency(amount: number): string {
+	return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
+}
+
+function formatNumber(num: number): string {
+	if (num === -1) return "Unlimited";
+	if (num >= 1000000000) return `${(num / 1000000000).toFixed(1)}B`;
+	if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+	if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+	return num.toString();
+}
+
+function getPlanColor(plan: string): string {
+	const colors: Record<string, string> = {
+		starter: "gc-text-secondary",
+		pro: "gc-accent-blue",
+		business: "gc-accent-violet",
+		enterprise: "gc-accent-amber",
+	};
+	return colors[plan] || "gc-text-secondary";
+}
+
+function getChurnRiskColor(risk: string): string {
+	const colors: Record<string, string> = {
+		low: "gc-accent-emerald",
+		medium: "gc-accent-amber",
+		high: "gc-accent-rose",
+	};
+	return colors[risk] || "gc-text-secondary";
+}
+
+function filteredTenants() {
+	return tenants.filter((tenant) => {
+		const matchesSearch =
+			searchQuery === "" ||
+			tenant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			tenant.owner.email.toLowerCase().includes(searchQuery.toLowerCase());
+		const matchesPlan = filterPlan === "all" || tenant.plan === filterPlan;
+		const matchesStatus = filterStatus === "all" || tenant.status === filterStatus;
+		return matchesSearch && matchesPlan && matchesStatus;
+	});
+}
+
+function toggleTenantSelection(tenantId: string) {
+	if (selectedTenantIds.includes(tenantId)) {
+		selectedTenantIds = selectedTenantIds.filter((id) => id !== tenantId);
+	} else {
+		selectedTenantIds = [...selectedTenantIds, tenantId];
 	}
+}
 
-	function formatNumber(num: number): string {
-		if (num === -1) return 'Unlimited';
-		if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
-		if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-		if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-		return num.toString();
+function selectAllTenants() {
+	if (selectedTenantIds.length === filteredTenants().length) {
+		selectedTenantIds = [];
+	} else {
+		selectedTenantIds = filteredTenants().map((t) => t.id);
 	}
-
-	function getPlanColor(plan: string): string {
-		const colors: Record<string, string> = {
-			starter: 'gc-text-secondary',
-			pro: 'gc-accent-blue',
-			business: 'gc-accent-violet',
-			enterprise: 'gc-accent-amber'
-		};
-		return colors[plan] || 'gc-text-secondary';
-	}
-
-	function getChurnRiskColor(risk: string): string {
-		const colors: Record<string, string> = {
-			low: 'gc-accent-emerald',
-			medium: 'gc-accent-amber',
-			high: 'gc-accent-rose'
-		};
-		return colors[risk] || 'gc-text-secondary';
-	}
-
-	function filteredTenants() {
-		return tenants.filter(tenant => {
-			const matchesSearch = searchQuery === '' ||
-				tenant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				tenant.owner.email.toLowerCase().includes(searchQuery.toLowerCase());
-			const matchesPlan = filterPlan === 'all' || tenant.plan === filterPlan;
-			const matchesStatus = filterStatus === 'all' || tenant.status === filterStatus;
-			return matchesSearch && matchesPlan && matchesStatus;
-		});
-	}
-
-	function toggleTenantSelection(tenantId: string) {
-		if (selectedTenantIds.includes(tenantId)) {
-			selectedTenantIds = selectedTenantIds.filter(id => id !== tenantId);
-		} else {
-			selectedTenantIds = [...selectedTenantIds, tenantId];
-		}
-	}
-
-	function selectAllTenants() {
-		if (selectedTenantIds.length === filteredTenants().length) {
-			selectedTenantIds = [];
-		} else {
-			selectedTenantIds = filteredTenants().map(t => t.id);
-		}
-	}
+}
 </script>
 
 <div class="flex h-[calc(100vh-4rem)]">
