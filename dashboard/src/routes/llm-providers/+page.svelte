@@ -83,6 +83,7 @@ type RawProvider = {
 
 let providers: Provider[] = demoProviders;
 let loading = true;
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let editingProvider: Provider | null = null;
 
 function parseModels(value: string | undefined, fallback: string[]): string[] {

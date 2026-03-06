@@ -3,6 +3,9 @@ import { api } from "$lib/api";
 import { tenantId } from "$lib/stores";
 import { onMount } from "svelte";
 
+// Linter: tenantId store is used via $tenantId reactive subscription below
+void tenantId;
+
 // Demo data for when not authenticated
 const demoMetrics = {
 	active_agents: { count: 12, change_pct: 8 },

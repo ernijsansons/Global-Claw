@@ -1,6 +1,5 @@
 <script lang="ts">
 import { api } from "$lib/api";
-import { tenantId } from "$lib/stores";
 import { onMount } from "svelte";
 
 // Demo workflows
@@ -70,8 +69,8 @@ const demoEdges = [
 type Workflow = (typeof demoWorkflows)[0];
 let workflows: Workflow[] = demoWorkflows;
 let loading = true;
-let selectedWorkflow: Workflow | null = demoWorkflows[0];
-let inspectorNode: (typeof demoNodes)[0] | null = null;
+const selectedWorkflow: Workflow | null = demoWorkflows[0];
+const inspectorNode: (typeof demoNodes)[0] | null = null;
 
 onMount(async () => {
 	if ($tenantId) {

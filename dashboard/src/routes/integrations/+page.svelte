@@ -1,6 +1,8 @@
 <script lang="ts">
 // Search and filter
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let searchQuery = "";
+// biome-ignore lint/style/useConst: Svelte reactive state for filtering
 let filterStatus = "all";
 
 // Connected integrations
@@ -155,6 +157,7 @@ const categories = [
 	"Marketing",
 	"Support",
 ];
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let selectedCategory = "All";
 
 // Modal state

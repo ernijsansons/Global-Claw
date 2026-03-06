@@ -84,11 +84,14 @@ const commissionHistory = [
 	{ month: "Dec 2025", amount: 890.5, tenants: 4, status: "paid" },
 ];
 
-// Active tab
+// Active tab (reassigned via template event handlers)
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let activeTab: "overview" | "tenants" | "commissions" | "resources" = "overview";
 
-// Spawn tenant modal
+// Spawn tenant modal (reassigned via template event handlers)
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let showSpawnModal = false;
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let spawnForm = {
 	name: "",
 	email: "",

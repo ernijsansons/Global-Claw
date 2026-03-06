@@ -27,6 +27,12 @@ const adminNavItems = [
 // Combined for header title lookup
 const allNavItems = [...mainNavItems, ...adminNavItems];
 
+// Stores accessed via Svelte's $ syntax in template (void for linter)
+void page;
+void isAuthenticated;
+void currentUser;
+
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let sidebarExpanded = true;
 
 onMount(() => {

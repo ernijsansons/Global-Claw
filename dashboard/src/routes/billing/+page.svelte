@@ -73,7 +73,7 @@ const referral = {
 	earningsThisMonth: 47.4,
 };
 
-// Tab state
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let activeTab: "overview" | "plans" | "invoices" | "referral" = "overview";
 
 function formatCurrency(amount: number): string {

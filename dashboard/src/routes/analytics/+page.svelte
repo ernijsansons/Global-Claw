@@ -1,5 +1,5 @@
 <script lang="ts">
-// Date range
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let dateRange = "7d";
 const dateRangeOptions = [
 	{ value: "24h", label: "Last 24 hours" },

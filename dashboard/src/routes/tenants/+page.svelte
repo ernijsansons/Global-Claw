@@ -1,8 +1,8 @@
 <script lang="ts">
 // Filters
-let searchQuery = "";
-let filterPlan = "all";
-let filterStatus = "all";
+const searchQuery = "";
+const filterPlan = "all";
+const filterStatus = "all";
 
 // Sample tenants data
 const tenants = [
@@ -153,7 +153,7 @@ const plans = ["starter", "pro", "business", "enterprise"];
 const statuses = ["active", "suspended"];
 
 // Selected tenant for detail panel
-let selectedTenant: (typeof tenants)[0] | null = null;
+const selectedTenant: (typeof tenants)[0] | null = null;
 
 // Bulk selection
 let selectedTenantIds: string[] = [];

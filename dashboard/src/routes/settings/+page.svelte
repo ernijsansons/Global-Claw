@@ -1,6 +1,6 @@
 <script lang="ts">
 // Active tab
-let activeTab: "team" | "api-keys" | "branding" | "notifications" | "danger" = "team";
+const activeTab: "team" | "api-keys" | "branding" | "notifications" | "danger" = "team";
 
 // Team members
 const teamMembers = [
@@ -12,8 +12,8 @@ const teamMembers = [
 const pendingInvites = [{ email: "invited@acmecorp.com", sentAt: "2026-03-03" }];
 
 // Invite form
-let inviteEmail = "";
-let inviteRole = "member";
+const inviteEmail = "";
+const inviteRole = "member";
 
 // API keys
 const apiKeys = [
@@ -36,8 +36,8 @@ const apiKeys = [
 ];
 
 // New key form
-let newKeyName = "";
-let newKeyScopes = {
+const newKeyName = "";
+const newKeyScopes = {
 	agentsRead: true,
 	agentsWrite: true,
 	conversationsRead: true,
@@ -48,15 +48,15 @@ let newKeyScopes = {
 };
 
 // Branding settings
-let brandingLogo: string | null = null;
-let primaryColor = "#3B82F6";
-let accentColor = "#8B5CF6";
-let widgetName = "My Company Chatbot";
-let useCustomDomain = false;
-let customSubdomain = "";
+const brandingLogo: string | null = null;
+const primaryColor = "#3B82F6";
+const accentColor = "#8B5CF6";
+const widgetName = "My Company Chatbot";
+const useCustomDomain = false;
+const customSubdomain = "";
 
 // Notification settings
-let notifications = {
+const notifications = {
 	dailySummary: true,
 	agentErrors: true,
 	usageLimit: true,
@@ -66,7 +66,7 @@ let notifications = {
 };
 
 // Delete confirmation
-let deleteConfirmation = "";
+const deleteConfirmation = "";
 
 function formatDate(dateStr: string): string {
 	const date = new Date(dateStr);

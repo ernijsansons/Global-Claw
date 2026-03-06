@@ -1,13 +1,15 @@
 <script lang="ts">
-import { onMount } from "svelte";
-
 // View modes
 type ViewMode = "timeline" | "graph" | "table";
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let viewMode: ViewMode = "timeline";
 
-// Search and filters
+// Search and filters (reassigned via template bind:value)
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let searchQuery = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let selectedAgent = "all";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let selectedType = "all";
 
 // Memory stats
@@ -91,6 +93,7 @@ const agents = ["Sales-LV", "Sales-EN", "Support-EN", "Support-RU", "Data-Collec
 const memoryTypes = ["conversation", "fact", "faq", "entity"];
 
 // Selected memory for detail view
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let selectedMemory: (typeof memoryEntries)[0] | null = null;
 
 function formatDate(dateStr: string): string {
@@ -134,6 +137,7 @@ function filteredEntries() {
 }
 
 // Graph interaction
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let hoveredNode: string | null = null;
 </script>
 

@@ -1,8 +1,11 @@
 <script lang="ts">
-// Filters
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let searchQuery = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let selectedAgent = "all";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let selectedStatus = "all";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let selectedPeriod = "7d";
 
 // Sample conversations
@@ -80,7 +83,7 @@ const conversations = [
 ];
 
 // Selected conversation
-let selectedConversation: (typeof conversations)[0] | null = conversations[0];
+const selectedConversation: (typeof conversations)[0] | null = conversations[0];
 
 type ConversationMessage =
 	| {

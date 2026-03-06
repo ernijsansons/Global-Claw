@@ -52,11 +52,19 @@ const demoAgents = [
 ];
 
 type Agent = (typeof demoAgents)[0];
+
+// Linter: tenantId store is used via $tenantId reactive subscription
+void tenantId;
+
 let agents: Agent[] = demoAgents;
 let loading = true;
 let error: string | null = null;
+
+// biome-ignore lint/style/useConst: Svelte reactive state reassigned in template
 let selectedAgent: Agent | null = null;
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let searchQuery = "";
+// biome-ignore lint/style/useConst: Svelte reactive state bound in template
 let statusFilter = "all";
 
 onMount(async () => {
