@@ -82,8 +82,26 @@
 	// Selected conversation
 	let selectedConversation: typeof conversations[0] | null = conversations[0];
 
+	type ConversationMessage =
+		| {
+				id: string;
+				sender: 'user';
+				content: string;
+				timestamp: string;
+		  }
+		| {
+				id: string;
+				sender: 'agent';
+				content: string;
+				timestamp: string;
+				model: string;
+				quality: number;
+				latency: number;
+				tokens: number;
+		  };
+
 	// Messages for the selected conversation
-	const messages = [
+	const messages: ConversationMessage[] = [
 		{
 			id: '1',
 			sender: 'user',

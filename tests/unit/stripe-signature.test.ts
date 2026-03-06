@@ -5,6 +5,8 @@
 
 import { describe, expect, it } from "vitest";
 
+const STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;
+
 /**
  * Verify Stripe webhook signature (copy of production logic for testing)
  */
@@ -14,25 +16,27 @@ async function verifyStripeSignature(
 	secret: string,
 ): Promise<{ valid: boolean; timestamp?: number }> {
 	const elements = signature.split(",");
-	const signatureData: Record<string, string> = {};
+	let timestamp: string | undefined;
+	const v1Signatures: string[] = [];
 
 	for (const element of elements) {
 		const [key, value] = element.split("=");
 		if (key && value) {
-			signatureData[key] = value;
+			if (key === "t") {
+				timestamp = value;
+			} else if (key === "v1") {
+				v1Signatures.push(value);
+			}
 		}
 	}
 
-	const timestamp = signatureData.t;
-	const v1Signature = signatureData.v1;
-
-	if (!timestamp || !v1Signature) {
+	if (!timestamp || v1Signatures.length === 0) {
 		return { valid: false };
 	}
 
 	const timestampNum = Number.parseInt(timestamp, 10);
 	const now = Math.floor(Date.now() / 1000);
-	if (Math.abs(now - timestampNum) > 300) {
+	if (Math.abs(now - timestampNum) > STRIPE_WEBHOOK_TOLERANCE_SECONDS) {
 		return { valid: false };
 	}
 
@@ -49,16 +53,22 @@ async function verifyStripeSignature(
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
 
-	if (expectedSignature.length !== v1Signature.length) {
-		return { valid: false };
+	for (const candidateSignature of v1Signatures) {
+		if (expectedSignature.length !== candidateSignature.length) {
+			continue;
+		}
+
+		let result = 0;
+		for (let i = 0; i < expectedSignature.length; i++) {
+			result |= expectedSignature.charCodeAt(i) ^ candidateSignature.charCodeAt(i);
+		}
+
+		if (result === 0) {
+			return { valid: true, timestamp: timestampNum };
+		}
 	}
 
-	let result = 0;
-	for (let i = 0; i < expectedSignature.length; i++) {
-		result |= expectedSignature.charCodeAt(i) ^ v1Signature.charCodeAt(i);
-	}
-
-	return { valid: result === 0, timestamp: timestampNum };
+	return { valid: false };
 }
 
 /**
@@ -117,6 +127,16 @@ describe("Stripe Signature Verification", () => {
 			const payload = '{"id":"evt_123","type":"test"}';
 			const almostExpired = Math.floor(Date.now() / 1000) - 299;
 			const { signature } = await createStripeSignature(payload, testSecret, almostExpired);
+
+			const result = await verifyStripeSignature(payload, signature, testSecret);
+
+			expect(result.valid).toBe(true);
+		});
+
+		it("should accept signature at exact boundary (5 min ago)", async () => {
+			const payload = '{"id":"evt_123","type":"test"}';
+			const boundaryTimestamp = Math.floor(Date.now() / 1000) - STRIPE_WEBHOOK_TOLERANCE_SECONDS;
+			const { signature } = await createStripeSignature(payload, testSecret, boundaryTimestamp);
 
 			const result = await verifyStripeSignature(payload, signature, testSecret);
 
@@ -230,6 +250,27 @@ describe("Stripe Signature Verification", () => {
 			const result = await verifyStripeSignature(payload, extendedSignature, testSecret);
 
 			expect(result.valid).toBe(true);
+		});
+
+		it("should accept when one of multiple v1 signatures is valid", async () => {
+			const payload = '{"id":"evt_123","type":"test"}';
+			const { signature } = await createStripeSignature(payload, testSecret);
+			const [timestampPair, validV1] = signature.split(",");
+			const multiSignature = `${timestampPair},v1=invalid0000,${validV1}`;
+
+			const result = await verifyStripeSignature(payload, multiSignature, testSecret);
+
+			expect(result.valid).toBe(true);
+		});
+
+		it("should reject when all multiple v1 signatures are invalid", async () => {
+			const payload = '{"id":"evt_123","type":"test"}';
+			const now = Math.floor(Date.now() / 1000);
+			const multiSignature = `t=${now},v1=badbadbad,v1=deadbeef`;
+
+			const result = await verifyStripeSignature(payload, multiSignature, testSecret);
+
+			expect(result.valid).toBe(false);
 		});
 	});
 

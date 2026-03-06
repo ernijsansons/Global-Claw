@@ -69,19 +69,67 @@
 	};
 
 	type Provider = (typeof demoProviders)[0];
+	type RawProvider = {
+		id: string;
+		slug: string;
+		name: string;
+		is_enabled: boolean;
+		models_json?: string;
+		pricing_json?: string;
+	};
+
 	let providers: Provider[] = demoProviders;
 	let loading = true;
 	let editingProvider: Provider | null = null;
+
+	function parseModels(value: string | undefined, fallback: string[]): string[] {
+		if (!value) return fallback;
+		try {
+			const parsed = JSON.parse(value) as unknown;
+			if (Array.isArray(parsed)) {
+				return parsed.filter((item): item is string => typeof item === "string");
+			}
+		} catch {
+			// Keep fallback when JSON parsing fails.
+		}
+		return fallback;
+	}
+
+	function parsePricing(value: string | undefined, fallback: Provider["pricing"]): Provider["pricing"] {
+		if (!value) return fallback;
+		try {
+			const parsed = JSON.parse(value) as { input?: unknown; output?: unknown };
+			const input = typeof parsed.input === "number" ? parsed.input : fallback.input;
+			const output = typeof parsed.output === "number" ? parsed.output : fallback.output;
+			return { input, output };
+		} catch {
+			// Keep fallback when JSON parsing fails.
+		}
+		return fallback;
+	}
 
 	onMount(async () => {
 		try {
 			const response = await api.getProviders();
 			if (response.success && response.data) {
-				// Merge demo data with actual data
-				providers = response.data.map((p: { slug: string }) => {
+				// Merge API data with demo defaults and safe fallbacks for new/unknown slugs.
+				providers = (response.data as RawProvider[]).map((p) => {
 					const demo = demoProviders.find((d) => d.slug === p.slug);
-					return { ...demo, ...p };
-				}) as Provider[];
+					const defaultPricing = demo?.pricing ?? { input: 0, output: 0 };
+
+					return {
+						id: p.id,
+						slug: p.slug,
+						name: p.name || demo?.name || p.slug,
+						is_enabled: p.is_enabled,
+						models: parseModels(p.models_json, demo?.models ?? []),
+						pricing: parsePricing(p.pricing_json, defaultPricing),
+						usage_pct: demo?.usage_pct ?? 0,
+						cost_usd: demo?.cost_usd ?? 0,
+						latency_ms: demo?.latency_ms ?? 0,
+						health_pct: demo?.health_pct ?? 100,
+					};
+				});
 			}
 		} catch {
 			// Use demo data

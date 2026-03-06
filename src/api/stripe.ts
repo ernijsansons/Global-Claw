@@ -13,6 +13,7 @@ import type { Env } from "../types/env";
 import type { ProvisioningInput } from "../workflows/provisioning";
 
 const stripe = new Hono<{ Bindings: Env }>();
+const STRIPE_WEBHOOK_TOLERANCE_SECONDS = 300;
 
 /**
  * Plan mapping from Stripe price IDs to plan names
@@ -42,26 +43,28 @@ async function verifyStripeSignature(
 ): Promise<{ valid: boolean; timestamp?: number }> {
 	// Parse the signature header
 	const elements = signature.split(",");
-	const signatureData: Record<string, string> = {};
+	let timestamp: string | undefined;
+	const v1Signatures: string[] = [];
 
 	for (const element of elements) {
 		const [key, value] = element.split("=");
 		if (key && value) {
-			signatureData[key] = value;
+			if (key === "t") {
+				timestamp = value;
+			} else if (key === "v1") {
+				v1Signatures.push(value);
+			}
 		}
 	}
 
-	const timestamp = signatureData.t;
-	const v1Signature = signatureData.v1;
-
-	if (!timestamp || !v1Signature) {
+	if (!timestamp || v1Signatures.length === 0) {
 		return { valid: false };
 	}
 
 	// Check timestamp is within tolerance (5 minutes)
 	const timestampNum = Number.parseInt(timestamp, 10);
 	const now = Math.floor(Date.now() / 1000);
-	if (Math.abs(now - timestampNum) > 300) {
+	if (Math.abs(now - timestampNum) > STRIPE_WEBHOOK_TOLERANCE_SECONDS) {
 		return { valid: false };
 	}
 
@@ -80,17 +83,24 @@ async function verifyStripeSignature(
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
 
-	// Constant-time comparison
-	if (expectedSignature.length !== v1Signature.length) {
-		return { valid: false };
+	// Constant-time comparison against every v1 signature value.
+	// Stripe may include multiple v1 signatures in a single header.
+	for (const candidateSignature of v1Signatures) {
+		if (expectedSignature.length !== candidateSignature.length) {
+			continue;
+		}
+
+		let result = 0;
+		for (let i = 0; i < expectedSignature.length; i++) {
+			result |= expectedSignature.charCodeAt(i) ^ candidateSignature.charCodeAt(i);
+		}
+
+		if (result === 0) {
+			return { valid: true, timestamp: timestampNum };
+		}
 	}
 
-	let result = 0;
-	for (let i = 0; i < expectedSignature.length; i++) {
-		result |= expectedSignature.charCodeAt(i) ^ v1Signature.charCodeAt(i);
-	}
-
-	return { valid: result === 0, timestamp: timestampNum };
+	return { valid: false };
 }
 
 /**
